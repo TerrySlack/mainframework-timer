@@ -16,7 +16,6 @@ export default {
   input: [
     "src/index.ts",
     "src/react.ts",
-    "src/react-server.ts",
     "src/worker/timer.worker.ts",
   ],
   external: (id) => id === "react" || id.startsWith("react/"),

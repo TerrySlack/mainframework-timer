@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { createWorker } from "../worker/createWorker";
 import { getDefaultRouteKey } from "../utils/routes";
-import { TimerWorkerMessage } from "../types";
+import type { TimerMode, TimerWorkerMessage } from "../types";
 
 const worker = createWorker();
 // One shared dispatcher so every hook instance gets its own messages
@@ -15,33 +15,33 @@ if (worker && !worker.onmessage) {
     listeners.get(msg.id)?.(msg);
   };
 }
+
 /**
- * Counts down durationSeconds using ticks reported by the shared timer worker.
- * Returns seconds remaining.
+ * Drives a timer via the shared worker.
+ * mode "down": durationSeconds counts down to 0. Returns seconds remaining.
+ * mode "up": durationSeconds is ignored. Returns seconds elapsed since mount/registration.
  */
-export const useTimer = (durationSeconds: number, routeKey?: string): number => {
+export const useTimer = (durationSeconds: number, routeKey?: string, mode: TimerMode = "down"): number => {
   const id = useId();
-  const lastRegister = useRef<{ durationSeconds: number; routeKey: string } | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(durationSeconds);
+  const lastRegister = useRef<{ durationSeconds: number; routeKey: string; mode: TimerMode } | null>(null);
+  const [value, setValue] = useState(mode === "down" ? durationSeconds : 0);
   const keyRef = useRef<string>(routeKey ?? getDefaultRouteKey());
 
   if (worker) {
     listeners.set(id, (msg: TimerWorkerMessage): void => {
-      if (msg.type === "tick") {
-        setSecondsLeft(msg.secondsLeft);
-      }
-      if (msg.type === "expired") {
-        setSecondsLeft(0);
-      }
+      if (msg.type === "tick" && msg.mode === "down") setValue(msg.secondsLeft);
+      if (msg.type === "tick" && msg.mode === "up") setValue(msg.secondsElapsed);
+      if (msg.type === "expired") setValue(0);
     });
 
     const prev = lastRegister.current;
-    if (!prev || prev.durationSeconds !== durationSeconds || prev.routeKey !== keyRef.current) {
-      lastRegister.current = { durationSeconds, routeKey: keyRef.current };
+    if (!prev || prev.durationSeconds !== durationSeconds || prev.routeKey !== keyRef.current || prev.mode !== mode) {
+      lastRegister.current = { durationSeconds, routeKey: keyRef.current, mode };
       worker.postMessage({
         type: "register",
         routeKey: keyRef.current,
         id,
+        mode,
         durationSeconds,
       });
     }
@@ -57,47 +57,6 @@ export const useTimer = (durationSeconds: number, routeKey?: string): number => 
       });
     };
   }, [id, routeKey]);
-  return secondsLeft;
+
+  return value;
 };
-// export const useTimer = (durationSeconds: number, routeKey?: string): number => {
-//   const id = useId();
-
-//   const [secondsLeft, setSecondsLeft] = useState(durationSeconds);
-
-//   if (worker && !worker.onmessage) {
-//     worker.onmessage = (e: MessageEvent<TimerWorkerMessage>): void => {
-//       const msg = e.data;
-
-//       if (!msg || msg.id !== id) return;
-
-//       if (msg.type === "tick") {
-//         setSecondsLeft(msg.secondsLeft);
-//       }
-
-//       if (msg.type === "expired") {
-//         setSecondsLeft(0);
-//       }
-//     };
-//   }
-
-//   if (worker && secondsLeft === durationSeconds) {
-//     worker.postMessage({
-//       type: "register",
-//       routeKey: routeKey ?? getDefaultRouteKey(),
-//       id,
-//       durationSeconds,
-//     });
-//   }
-
-//   useEffect(() => {
-//     return () => {
-//       worker?.postMessage({
-//         type: "unregister",
-//         routeKey: routeKey ?? getDefaultRouteKey(),
-//         id,
-//       });
-//     };
-//   }, [id, routeKey]);
-
-//   return secondsLeft;
-// };
