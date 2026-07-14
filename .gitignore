@@ -1,0 +1,7 @@
+node_modules
+.idea
+dist
+yarn-error.log
+.rollup*/
+src/**/*.js
+src/**/*.js.map

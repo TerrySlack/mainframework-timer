@@ -1,0 +1,50 @@
+{
+  "compilerOptions": {
+    "allowJs": false,
+
+    // Path aliases (keep if you use them)
+    "paths": {
+      "react": ["../node_modules/@types/react"],
+      "react/*": ["../node_modules/@types/react/*"],
+      "Components/*": ["./src/components/*"],
+      "Hooks/*": ["./src/hooks/*"],
+      "Utils/*": ["./src/utils/*"]
+    },
+
+    // Modern ESM + bundler-aware resolution
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+
+    // DOM context for the React side
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+
+    // Strictness & interop
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "useUnknownInCatchVariables": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+
+    // Emit
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+
+    // Dev ergonomics
+    "incremental": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+}
