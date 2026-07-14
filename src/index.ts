@@ -1,7 +1,3 @@
 export { createWorker } from "./worker/createWorker";
 export { getDefaultRouteKey } from "./utils/routes";
-export type {
-  TimerWorkerMessage,
-  TimerWorkerIncomingMessage,
-  // other public types as needed
-} from "./types";
+export type { TimerMode, TimerWorkerMessage, TimerWorkerIncomingMessage } from "./types";
