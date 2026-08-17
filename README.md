@@ -25,7 +25,7 @@ npm install @mainframework/timer
 ```
 
 ```bash
-yarn add @mainframework/timer
+pnpm add @mainframework/timer
 ```
 
 React is an optional peer dependency. Install React separately if you use the hook entry:
