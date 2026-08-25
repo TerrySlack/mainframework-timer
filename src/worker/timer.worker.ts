@@ -99,6 +99,7 @@ const startLoop = (): void => {
 };
 
 self.onmessage = (e: MessageEvent<TimerWorkerIncomingMessage>): void => {
+  console.log("in the worker");
   const { data } = e;
   if (data.type === "route") {
     activeRoute = data.activeRoute;
@@ -106,6 +107,7 @@ self.onmessage = (e: MessageEvent<TimerWorkerIncomingMessage>): void => {
     stopLoopIfIdle();
     return;
   }
+
   if (data.type === "register") {
     const anchorEpochMs = data.mode === "down" ? Date.now() + (data.durationSeconds ?? 0) * 1000 : Date.now();
     addTimer(data.routeKey, data.id, data.mode, anchorEpochMs);

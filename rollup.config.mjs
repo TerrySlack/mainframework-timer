@@ -3,6 +3,7 @@ import resolve from "@rollup/plugin-node-resolve";
 import typescript from "@rollup/plugin-typescript";
 import babel from "@rollup/plugin-babel";
 import terser from "@rollup/plugin-terser";
+import {importMetaAssets} from "@web/rollup-plugin-import-meta-assets";
 
 const reactCompilerOptions = {
   target: "19",
@@ -13,11 +14,7 @@ const reactCompilerOptions = {
 };
 
 export default {
-  input: [
-    "src/index.ts",
-    "src/react.ts",
-    "src/worker/timer.worker.ts",
-  ],
+  input: ["src/index.ts", "src/react.ts", "src/worker/timer.worker.ts"],
   external: (id) => id === "react" || id.startsWith("react/"),
   output: {
     dir: "dist",
@@ -26,7 +23,8 @@ export default {
     entryFileNames: (chunk) => {
       if (chunk.name.includes("worker")) return "worker/timer.worker.js";
       if (chunk.name === "index") return "vanilla/index.js";
-      return "[name].js";
+      if (chunk.name === "react") return "react.js";
+      return "chunks/[name].js"; // fallback for anything unexpected, not a public entry
     },
     chunkFileNames: "chunks/[name]-[hash].js",
     banner: (chunk) => (chunk.name === "react" ? '"use client";' : ""),
@@ -43,6 +41,7 @@ export default {
       plugins: [["babel-plugin-react-compiler", reactCompilerOptions]],
       presets: ["@babel/preset-typescript"],
     }),
+    importMetaAssets(),
     typescript({
       tsconfig: "./tsconfig.json",
       declaration: true,

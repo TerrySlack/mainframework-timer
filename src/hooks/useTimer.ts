@@ -9,8 +9,10 @@ const worker = createWorker();
 const listeners = new Map<string, (msg: TimerWorkerMessage) => void>();
 
 if (worker && !worker.onmessage) {
+  console.log(`1 - worker created`);
   worker.onmessage = (e: MessageEvent<TimerWorkerMessage>): void => {
     const msg = e.data;
+    console.log(`2 - In onmessage ${JSON.stringify(msg)}`);
     if (!msg?.id) return;
     listeners.get(msg.id)?.(msg);
   };
@@ -28,7 +30,9 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
   const keyRef = useRef<string>(routeKey ?? getDefaultRouteKey());
 
   if (worker) {
+    console.log(`3 - In useTimer id ${id}`);
     listeners.set(id, (msg: TimerWorkerMessage): void => {
+      console.log(`4 - In useTimer listeners callback msg ${JSON.stringify(msg)}`);
       if (msg.type === "tick" && msg.mode === "down") setValue(msg.secondsLeft);
       if (msg.type === "tick" && msg.mode === "up") setValue(msg.secondsElapsed);
       if (msg.type === "expired") setValue(0);
@@ -49,6 +53,7 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
 
   useEffect(() => {
     return () => {
+       console.log(`1 - In useEffect cleanup id ${id}`);
       listeners.delete(id);
       worker?.postMessage({
         type: "unregister",
