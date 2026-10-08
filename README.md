@@ -7,16 +7,13 @@ Countdown and count-up timers for the browser, backed by a shared Web Worker. Ti
 This library is a **browser-only, client-side** package. It depends on `window`, `Worker`, and `window.location`.
 
 - **Do not use** in Node.js, Express, or other server-side runtimes.
-- **Not for SSR timer execution.** You may import it in SSR frameworks (e.g. Next.js), but timers only run after client hydration. On the server, `useTimer` returns the initial `durationSeconds` in `"down"` mode and `0` in `"up"` mode; it does not tick.
-- `createWorker()` returns `null` when `window` is undefined, so imports are safe in isomorphic bundles — the timer simply does not run until the browser.
+- **Client-only enforcement:** Calling `createWorker()`, `getDefaultRouteKey()`, `setActiveRoute()`, or `useTimer()` when `window` is undefined throws an explicit runtime `Error`. There are no SSR fallback or no-op timer execution modes.
 
 ## Requirements
 
 - A modern browser with Web Worker support
-- An ESM-capable bundler that resolves worker URLs via `import.meta.url` (Vite, webpack 5, etc.)
+- ESM environment supporting `import.meta.url`
 - React >= 19 (only when using `@mainframework/timer/react`)
-
-This package is **not** a drop-in for plain `<script>` tags without a bundler.
 
 ## Installation
 
@@ -41,15 +38,15 @@ Import `useTimer` from the React entry point. The React entry ships with a `"use
 ```tsx
 import { useTimer } from "@mainframework/timer/react";
 
-export function Countdown() {
+export const Countdown = () => {
   const secondsLeft = useTimer(60);
   return <span>{secondsLeft}s</span>;
-}
+};
 
-export function Stopwatch() {
+export const Stopwatch = () => {
   const secondsElapsed = useTimer(0, undefined, "up");
   return <span>{secondsElapsed}s</span>;
-}
+};
 ```
 
 ### `useTimer(durationSeconds, routeKey?, mode?)`
@@ -66,23 +63,25 @@ Returns seconds remaining in `"down"` mode, or seconds elapsed in `"up"` mode. E
 
 The main entry exports low-level utilities. You register timers, listen for messages, and unregister yourself.
 
+Always use `worker.addEventListener("message", ...)` and `worker.removeEventListener("message", ...)` rather than `worker.onmessage`. Setting `worker.onmessage` overwrites any existing listener, which breaks other timers and components sharing the singleton worker.
+
 ### Countdown
 
 ```js
 import { createWorker, getDefaultRouteKey } from "@mainframework/timer";
 
 const worker = createWorker();
-if (!worker) throw new Error("Timer requires a browser environment");
-
 const timerId = crypto.randomUUID();
 const routeKey = getDefaultRouteKey();
 
-worker.onmessage = (e) => {
+const handleMessage = (e) => {
   const msg = e.data;
-  if (msg.id !== timerId) return;
+  if (!msg || msg.id !== timerId) return;
   if (msg.type === "tick" && msg.mode === "down") console.log(msg.secondsLeft);
   if (msg.type === "expired") console.log("done");
 };
+
+worker.addEventListener("message", handleMessage);
 
 worker.postMessage({
   type: "register",
@@ -93,17 +92,26 @@ worker.postMessage({
 });
 
 // cleanup when done
+worker.removeEventListener("message", handleMessage);
 worker.postMessage({ type: "unregister", routeKey, id: timerId });
 ```
 
 ### Count-up
 
 ```js
-worker.onmessage = (e) => {
+import { createWorker, getDefaultRouteKey } from "@mainframework/timer";
+
+const worker = createWorker();
+const timerId = crypto.randomUUID();
+const routeKey = getDefaultRouteKey();
+
+const handleMessage = (e) => {
   const msg = e.data;
-  if (msg.id !== timerId) return;
+  if (!msg || msg.id !== timerId) return;
   if (msg.type === "tick" && msg.mode === "up") console.log(msg.secondsElapsed);
 };
+
+worker.addEventListener("message", handleMessage);
 
 worker.postMessage({
   type: "register",
@@ -111,6 +119,10 @@ worker.postMessage({
   id: timerId,
   mode: "up",
 });
+
+// cleanup when done
+worker.removeEventListener("message", handleMessage);
+worker.postMessage({ type: "unregister", routeKey, id: timerId });
 ```
 
 ### Route management (SPAs)
@@ -118,10 +130,10 @@ worker.postMessage({
 When navigating between routes, notify the worker of the active route to purge timers from inactive routes:
 
 ```js
-worker.postMessage({ type: "route", activeRoute: "/dashboard" });
-```
+import { setActiveRoute } from "@mainframework/timer";
 
-The `useTimer` hook does not send route messages today; use this directly when managing timers with `createWorker`.
+setActiveRoute("/dashboard");
+```
 
 ## API reference
 
@@ -129,8 +141,9 @@ The `useTimer` hook does not send route messages today; use this directly when m
 
 | Export                       | Description                                                              |
 | ---------------------------- | ------------------------------------------------------------------------ |
-| `createWorker()`             | Returns the singleton `Worker`, or `null` outside a browser environment. |
-| `getDefaultRouteKey()`       | Returns `window.location.pathname`, or `""` on the server.               |
+| `createWorker()`             | Returns the singleton `Worker`. Throws outside a browser environment.    |
+| `getDefaultRouteKey()`       | Returns `window.location.pathname`. Throws outside a browser environment.|
+| `setActiveRoute(routeKey)`   | Broadcasts the active route to the worker to purge inactive timers.      |
 | `TimerMode`                  | Type: `"down" \| "up"`.                                                  |
 | `TimerWorkerIncomingMessage` | Type for main thread → worker messages.                                  |
 | `TimerWorkerMessage`         | Type for worker → main thread messages.                                  |
