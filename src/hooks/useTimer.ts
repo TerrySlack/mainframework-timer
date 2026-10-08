@@ -3,6 +3,7 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { createWorker } from "../worker/createWorker";
 import { getDefaultRouteKey } from "../utils/routes";
 import type { TimerMode, TimerWorkerMessage } from "../types";
+import { normalizeDurationSeconds } from "../utils/duration";
 
 type Listener = (msg: TimerWorkerMessage) => void;
 const listeners = new Map<string, Listener>();
@@ -31,8 +32,9 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
   const id = useId();
   const currentWorker = createWorker();
   const activeRouteKey = routeKey ?? getDefaultRouteKey();
+  const effectiveDuration = mode === "down" ? normalizeDurationSeconds(durationSeconds) : 0;
 
-  const [value, setValue] = useState(mode === "down" ? durationSeconds : 0);
+  const [value, setValue] = useState(effectiveDuration);
   const lastRegister = useRef<{ durationSeconds: number; routeKey: string; mode: TimerMode } | null>(null);
 
   useLayoutEffect(() => {
@@ -47,7 +49,7 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
     listeners.set(id, handleMessage);
 
     const prev = lastRegister.current;
-    if (!prev || prev.durationSeconds !== durationSeconds || prev.routeKey !== activeRouteKey || prev.mode !== mode) {
+    if (!prev || prev.durationSeconds !== effectiveDuration || prev.routeKey !== activeRouteKey || prev.mode !== mode) {
       if (prev && prev.routeKey !== activeRouteKey) {
         currentWorker.postMessage({
           type: "unregister",
@@ -55,17 +57,26 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
           id,
         });
       }
-      if (prev && (prev.durationSeconds !== durationSeconds || prev.mode !== mode || prev.routeKey !== activeRouteKey)) {
-        setValue(mode === "down" ? durationSeconds : 0);
+      if (prev && (prev.durationSeconds !== effectiveDuration || prev.mode !== mode || prev.routeKey !== activeRouteKey)) {
+        setValue(effectiveDuration);
       }
-      lastRegister.current = { durationSeconds, routeKey: activeRouteKey, mode };
-      currentWorker.postMessage({
-        type: "register",
-        routeKey: activeRouteKey,
-        id,
-        mode,
-        durationSeconds,
-      });
+      lastRegister.current = { durationSeconds: effectiveDuration, routeKey: activeRouteKey, mode };
+      if (mode === "down") {
+        currentWorker.postMessage({
+          type: "register",
+          routeKey: activeRouteKey,
+          id,
+          mode,
+          durationSeconds: effectiveDuration,
+        });
+      } else {
+        currentWorker.postMessage({
+          type: "register",
+          routeKey: activeRouteKey,
+          id,
+          mode,
+        });
+      }
     }
 
     return () => {
@@ -77,7 +88,7 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
         id,
       });
     };
-  }, [id, activeRouteKey, currentWorker, durationSeconds, mode]);
+  }, [id, activeRouteKey, currentWorker, effectiveDuration, mode]);
 
   return value;
 };

@@ -19,3 +19,12 @@
 - **The reach:** Builds no longer add unrelated cache churn to future slice commits. No runtime or declaration output changes.
 - **Verdict:** Sound — generated incremental state has no durable source ownership.
 - **Confidence:** High.
+
+### Test the production worker module by replacing only its browser globals
+
+- **When:** Slice 02 — worker contract and duration.
+- **The choice:** Worker tests import the real `timer.worker.ts` module while a fake `self`, fake clock, and fake timers stand in for the browser. Messages still enter through the production `message` listener and leave through the production `postMessage` call. The unbuilt alternative was extracting a second runtime factory used mainly by tests, which would add another composition path that could drift from the worker entry.
+- **The gap:** The plan allowed either an injected projector callback or internal assertions but did not fix the worker test boundary.
+- **The reach:** Future worker tests should keep driving the actual message boundary. Pure helpers may still be tested directly when their result is the contract.
+- **Verdict:** Sound — it provides deterministic time without bypassing production message handling.
+- **Confidence:** High.

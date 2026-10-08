@@ -30,5 +30,6 @@ export type TimerWorkerMessage =
 /** Main thread → worker */
 export type TimerWorkerIncomingMessage =
   | { type: "route"; activeRoute: string }
-  | { type: "register"; routeKey: string; id: string; mode: TimerMode; durationSeconds?: number }
+  | { type: "register"; routeKey: string; id: string; mode: "down"; durationSeconds: number }
+  | { type: "register"; routeKey: string; id: string; mode: "up" }
   | { type: "unregister"; routeKey: string; id: string };

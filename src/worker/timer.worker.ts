@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import type { TimerMode, TimerRow, TimerStore, TimerWorkerIncomingMessage } from "../types";
+import { normalizeDurationSeconds } from "../utils/duration";
 
 const state: { store: TimerStore } = {
   store: {
@@ -14,7 +15,7 @@ let activeRoute: string | null = null;
 
 const getCount = (): number => state.store.timerCount;
 
-const addTimer = (routeKey: string, id: string, mode: TimerMode, anchorEpochMs: number): void => {
+const addTimer = (routeKey: string, id: string, mode: TimerMode, anchorEpochMs: number): TimerRow => {
   let route = state.store.timers.get(routeKey);
   if (!route) {
     route = { timerCount: 0, timers: new Map<string, TimerRow>() };
@@ -28,12 +29,14 @@ const addTimer = (routeKey: string, id: string, mode: TimerMode, anchorEpochMs: 
       existing.anchorEpochMs = anchorEpochMs;
       existing.lastEmittedSecond = -1;
     }
-    return;
+    return existing;
   }
 
-  route.timers.set(id, { mode, anchorEpochMs, lastEmittedSecond: -1 });
+  const row = { mode, anchorEpochMs, lastEmittedSecond: -1 };
+  route.timers.set(id, row);
   route.timerCount++;
   state.store.timerCount++;
+  return row;
 };
 
 const deleteTimer = (routeKey: string, id: string): void => {
@@ -55,12 +58,38 @@ const stopLoopIfIdle = (): void => {
 };
 
 const cleanupNonActiveRoutes = (): void => {
-  if (!activeRoute) return;
+  if (activeRoute === null) return;
   for (const [routeKey, route] of state.store.timers) {
     if (routeKey === activeRoute) continue;
     state.store.timerCount -= route.timerCount;
     state.store.timers.delete(routeKey);
   }
+};
+
+const tickTimer = (id: string, row: TimerRow, now: number): boolean => {
+  if (row.mode === "down") {
+    const secondsLeft = Math.max(0, Math.ceil((row.anchorEpochMs - now) / 1000));
+    if (secondsLeft === 0) {
+      if (row.lastEmittedSecond !== 0) {
+        row.lastEmittedSecond = 0;
+        self.postMessage({ type: "expired", id });
+        return true;
+      }
+      return false;
+    }
+    if (secondsLeft !== row.lastEmittedSecond) {
+      row.lastEmittedSecond = secondsLeft;
+      self.postMessage({ type: "tick", id, mode: "down", secondsLeft });
+    }
+    return false;
+  }
+
+  const secondsElapsed = Math.max(0, Math.floor((now - row.anchorEpochMs) / 1000));
+  if (secondsElapsed !== row.lastEmittedSecond) {
+    row.lastEmittedSecond = secondsElapsed;
+    self.postMessage({ type: "tick", id, mode: "up", secondsElapsed });
+  }
+  return false;
 };
 
 const tickOnce = (): void => {
@@ -69,27 +98,7 @@ const tickOnce = (): void => {
 
   for (const [routeKey, route] of state.store.timers) {
     for (const [id, row] of route.timers) {
-      if (row.mode === "down") {
-        const secondsLeft = Math.max(0, Math.ceil((row.anchorEpochMs - now) / 1000));
-        if (secondsLeft === 0) {
-          if (row.lastEmittedSecond !== 0) {
-            row.lastEmittedSecond = 0;
-            self.postMessage({ type: "expired", id });
-            expiredTimers.push({ routeKey, id });
-          }
-          continue;
-        }
-        if (secondsLeft !== row.lastEmittedSecond) {
-          row.lastEmittedSecond = secondsLeft;
-          self.postMessage({ type: "tick", id, mode: "down", secondsLeft });
-        }
-      } else {
-        const secondsElapsed = Math.max(0, Math.floor((now - row.anchorEpochMs) / 1000));
-        if (secondsElapsed !== row.lastEmittedSecond) {
-          row.lastEmittedSecond = secondsElapsed;
-          self.postMessage({ type: "tick", id, mode: "up", secondsElapsed });
-        }
-      }
+      if (tickTimer(id, row, now)) expiredTimers.push({ routeKey, id });
     }
   }
 
@@ -127,11 +136,12 @@ self.addEventListener("message", (e: MessageEvent<TimerWorkerIncomingMessage>): 
   }
 
   if (data.type === "register") {
-    const safeDuration = Math.max(0, Math.floor(data.durationSeconds ?? 0));
-    const anchorEpochMs = data.mode === "down" ? Date.now() + safeDuration * 1000 : Date.now();
-    addTimer(data.routeKey, data.id, data.mode, anchorEpochMs);
+    const now = Date.now();
+    const safeDuration = data.mode === "down" ? normalizeDurationSeconds(data.durationSeconds) : 0;
+    const anchorEpochMs = data.mode === "down" ? now + safeDuration * 1000 : now;
+    const row = addTimer(data.routeKey, data.id, data.mode, anchorEpochMs);
+    if (tickTimer(data.id, row, now)) deleteTimer(data.routeKey, data.id);
     startLoop();
-    tickOnce();
     return;
   }
   if (data.type === "unregister") {
