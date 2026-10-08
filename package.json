@@ -51,6 +51,10 @@
     "lint": "eslint . --max-warnings=0 --no-warn-ignored",
     "prebuild": "pnpm clean",
     "build": "rollup -c && tsc --emitDeclarationOnly --declarationDir dist/types",
+    "pretest": "pnpm build",
+    "test": "vitest run --project unit",
+    "test:browser": "pnpm build && vitest run --project browser",
+    "test:types": "tsc -p tsconfig.test.json",
     "tscheck": "tsc"
   },
   "devDependencies": {
@@ -61,8 +65,9 @@
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.3.0",
+    "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
-    "@web/rollup-plugin-import-meta-assets": "^3.0.0",
+    "@vitest/browser-playwright": "^5.0.3",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9.35.0",
     "eslint-plugin-react": "^7.37.5",
@@ -71,12 +76,14 @@
     "globals": "^17.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
+    "playwright": "^1.64.0",
     "prettier": "^3.9.9",
     "react": "^19.3.0",
     "rimraf": "^6.1.3",
     "rollup": "^4.64.3",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.71.1"
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
   }
 }

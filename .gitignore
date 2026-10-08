@@ -3,6 +3,7 @@ node_modules
 dist
 yarn-error.log
 .rollup*/
+tsconfig.tsbuildinfo
 src/**/*.js
 src/**/*.js.map
 pnpm-lock.yaml

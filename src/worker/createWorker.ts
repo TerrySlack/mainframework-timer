@@ -9,7 +9,7 @@ export const createWorker = (): Worker => {
     throw new Error("@mainframework/timer is client-side only and requires a window environment.");
   }
   if (!worker) {
-    worker = new Worker(new URL("../worker/timer.worker.ts", import.meta.url), {
+    worker = new Worker(new URL("../worker/timer.worker.js", import.meta.url), {
       type: "module",
     });
   }
