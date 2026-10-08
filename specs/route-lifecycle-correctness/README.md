@@ -2,19 +2,22 @@
 
 ## Next Agent Prompt
 
-**Status:** Planned on 2026-10-08. No implementation slice has started.
+**Status:** Slice 01 completed on 2026-10-08. React registrations now accept Worker messages only while their configuration generation still owns the hook state.
 
-Start with [Slice 01 — React registration ownership](slices/01-react-registration-ownership.md). Make its deterministic browser regression fail against the current hook before changing production code, then implement only that slice. Keep the global checklist current and rewrite this handoff before ending the pass.
+Continue with [Slice 02 — Authoritative route admission](slices/02-authoritative-route-admission.md). Keep its Worker admission boundary independent from the React generation ownership completed in Slice 01.
 
 Warnings:
 
 - Route components unmount on every route change. Supporting still-mounted inactive hooks or later reactivation is out of scope.
 - `setActiveRoute()` cleanup may complete asynchronously.
 - Existing deletions under `specs/done/runtime-correctness/` are unrelated and must remain untouched.
+- The repository's package-manager supply-chain policy currently rejects recently published locked Rollup binaries. Slice 01 verification used the already-installed pinned tools directly.
+
+Slice 01 evidence: the browser project passed 12 tests, the focused Worker unit file passed 10 tests, focused lint passed with zero warnings, and production plus test type checks passed after building package declarations.
 
 Global checklist:
 
-- [ ] [Slice 01](slices/01-react-registration-ownership.md): reject messages from obsolete React registrations while retaining passive effects.
+- [x] [Slice 01](slices/01-react-registration-ownership.md): reject messages from obsolete React registrations while retaining passive effects.
 - [ ] [Slice 02](slices/02-authoritative-route-admission.md): make the worker reject registrations outside the active route.
 - [ ] [Slice 03](slices/03-verification-and-release.md): make type checking sterile and add the complete verification gate.
 

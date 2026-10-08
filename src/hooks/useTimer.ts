@@ -11,6 +11,7 @@ interface TimerState {
   routeKey: string;
   mode: TimerMode;
   value: number;
+  generation: number;
 }
 
 const listeners = new Map<string, Listener>();
@@ -45,11 +46,13 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
     routeKey: activeRouteKey,
     mode,
     value: effectiveDuration,
+    generation: 0,
   });
   const configurationChanged =
     timerState.durationSeconds !== effectiveDuration ||
     timerState.routeKey !== activeRouteKey ||
     timerState.mode !== mode;
+  const generation = configurationChanged ? timerState.generation + 1 : timerState.generation;
   let value = timerState.value;
   if (configurationChanged) {
     value = effectiveDuration;
@@ -58,6 +61,7 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
       routeKey: activeRouteKey,
       mode,
       value,
+      generation,
     });
   }
 
@@ -67,15 +71,17 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
     ensureWorkerListener(currentWorker);
 
     const handleMessage = (msg: TimerWorkerMessage): void => {
-      let nextValue: number;
-      if (msg.type === "tick" && msg.mode === "down") nextValue = msg.secondsLeft;
-      else if (msg.type === "tick" && msg.mode === "up") nextValue = msg.secondsElapsed;
-      else nextValue = 0;
-      setTimerState({
-        durationSeconds: effectiveDuration,
-        routeKey: activeRouteKey,
-        mode,
-        value: nextValue,
+      setTimerState((currentState) => {
+        if (currentState.generation !== generation) return currentState;
+
+        let nextValue: number;
+        if (msg.type === "tick" && msg.mode === "down") nextValue = msg.secondsLeft;
+        else if (msg.type === "tick" && msg.mode === "up") nextValue = msg.secondsElapsed;
+        else nextValue = 0;
+        return {
+          ...currentState,
+          value: nextValue,
+        };
       });
     };
 
@@ -106,7 +112,7 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
         id,
       });
     };
-  }, [activeRouteKey, effectiveDuration, mode]);
+  }, [activeRouteKey, effectiveDuration, generation, mode]);
 
   return value;
 };

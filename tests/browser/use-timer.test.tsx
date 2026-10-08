@@ -1,4 +1,4 @@
-import { StrictMode, act, type ReactNode } from "react";
+import { StrictMode, act, useLayoutEffect, useState, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,17 @@ interface ProbeProps {
   duration: number;
   routeKey?: string;
   mode?: TimerMode;
+}
+
+interface RaceProbeProps extends ProbeProps {
+  onCommit: (value: number) => void;
+  staleMessage?: TimerWorkerMessage;
+}
+
+interface ReturnToInitialProbeProps {
+  enabled: boolean;
+  onCommit: (value: number) => void;
+  staleMessage?: TimerWorkerMessage;
 }
 
 interface WorkerPost {
@@ -40,6 +51,42 @@ class FakeWorker extends EventTarget {
 
 const Probe = ({ duration, routeKey, mode }: ProbeProps) => {
   const value = useTimer(duration, routeKey, mode);
+  return <output>{value}</output>;
+};
+
+const RaceProbe = ({ duration, routeKey, mode, onCommit, staleMessage }: RaceProbeProps) => {
+  const value = useTimer(duration, routeKey, mode);
+
+  useLayoutEffect(() => {
+    onCommit(value);
+  });
+  useLayoutEffect(() => {
+    if (staleMessage) getWorker().emit(staleMessage);
+  }, [staleMessage]);
+
+  return <output>{value}</output>;
+};
+
+const ReturnToInitialProbe = ({ enabled, onCommit, staleMessage }: ReturnToInitialProbeProps) => {
+  const [phase, setPhase] = useState(0);
+  const configuration = phase === 1 ? "b" : "a";
+  const value = useTimer(configuration === "a" ? 10 : 20, configuration);
+
+  useLayoutEffect(() => {
+    onCommit(value);
+  });
+  useLayoutEffect(() => {
+    if (!enabled) return;
+    if (phase === 0) {
+      setPhase(1);
+      return;
+    }
+    if (phase === 1) {
+      if (staleMessage) getWorker().emit(staleMessage);
+      setPhase(2);
+    }
+  }, [enabled, phase, staleMessage]);
+
   return <output>{value}</output>;
 };
 
@@ -174,6 +221,113 @@ describe("useTimer", () => {
       mounted.root.render(<Probe duration={10} routeKey="a" />);
     });
     expect(output?.textContent).toBe("10");
+  });
+
+  it.each([
+    {
+      name: "duration",
+      initial: { duration: 10, routeKey: "same", mode: "down" as const },
+      next: { duration: 20, routeKey: "same", mode: "down" as const },
+      stale: { type: "tick", mode: "down", secondsLeft: 3 } as const,
+      expected: 20,
+    },
+    {
+      name: "route",
+      initial: { duration: 10, routeKey: "a", mode: "down" as const },
+      next: { duration: 10, routeKey: "b", mode: "down" as const },
+      stale: { type: "tick", mode: "down", secondsLeft: 3 } as const,
+      expected: 10,
+    },
+    {
+      name: "mode",
+      initial: { duration: 10, routeKey: "same", mode: "down" as const },
+      next: { duration: 10, routeKey: "same", mode: "up" as const },
+      stale: { type: "tick", mode: "down", secondsLeft: 3 } as const,
+      expected: 0,
+    },
+    {
+      name: "expired",
+      initial: { duration: 10, routeKey: "same", mode: "down" as const },
+      next: { duration: 20, routeKey: "same", mode: "down" as const },
+      stale: { type: "expired" } as const,
+      expected: 20,
+    },
+  ])("rejects an obsolete registration during a $name transition", ({ initial, next, stale, expected }) => {
+    const commits: number[] = [];
+    const recordCommit = (value: number): void => {
+      commits.push(value);
+    };
+    const mounted = mount(<RaceProbe {...initial} onCommit={recordCommit} />);
+    const worker = getWorker();
+    const oldRegistration = worker.messages.at(-1);
+    const staleMessage = { ...stale, id: oldRegistration?.id ?? "" } satisfies TimerWorkerMessage;
+    commits.length = 0;
+
+    act(() => {
+      mounted.root.render(<RaceProbe {...next} onCommit={recordCommit} staleMessage={staleMessage} />);
+    });
+
+    expect(commits).toEqual([expected]);
+    expect(mounted.container.querySelector("output")?.textContent).toBe(String(expected));
+  });
+
+  it("distinguishes a returned configuration from its obsolete registration", () => {
+    const commits: number[] = [];
+    const recordCommit = (value: number): void => {
+      commits.push(value);
+    };
+    const mounted = mount(<ReturnToInitialProbe enabled={false} onCommit={recordCommit} />);
+    const worker = getWorker();
+    const oldRegistration = worker.messages.at(-1);
+    const staleMessage = {
+      type: "tick",
+      id: oldRegistration?.id ?? "",
+      mode: "down",
+      secondsLeft: 3,
+    } satisfies TimerWorkerMessage;
+    commits.length = 0;
+
+    act(() => {
+      mounted.root.render(<ReturnToInitialProbe enabled onCommit={recordCommit} staleMessage={staleMessage} />);
+    });
+
+    expect(commits).toEqual([10, 20, 10]);
+    expect(mounted.container.querySelector("output")?.textContent).toBe("10");
+  });
+
+  it("accepts messages from the current registration generation", () => {
+    const commits: number[] = [];
+    const recordCommit = (value: number): void => {
+      commits.push(value);
+    };
+    const mounted = mount(<RaceProbe duration={10} routeKey="current" onCommit={recordCommit} />);
+    const worker = getWorker();
+    const oldRegistration = worker.messages.at(-1);
+    const staleMessage = {
+      type: "tick",
+      id: oldRegistration?.id ?? "",
+      mode: "down",
+      secondsLeft: 3,
+    } satisfies TimerWorkerMessage;
+    commits.length = 0;
+
+    act(() => {
+      mounted.root.render(
+        <RaceProbe duration={20} routeKey="current" onCommit={recordCommit} staleMessage={staleMessage} />,
+      );
+    });
+    const currentRegistration = worker.messages.at(-1);
+    act(() => {
+      worker.emit({
+        type: "tick",
+        id: currentRegistration?.id ?? "",
+        mode: "down",
+        secondsLeft: 18,
+      });
+    });
+
+    expect(commits).toEqual([20, 18]);
+    expect(mounted.container.querySelector("output")?.textContent).toBe("18");
   });
 
   it("ignores duration changes in count-up mode", () => {
