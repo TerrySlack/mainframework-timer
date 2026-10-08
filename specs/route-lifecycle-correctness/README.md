@@ -2,23 +2,26 @@
 
 ## Next Agent Prompt
 
-**Status:** Slice 01 completed on 2026-10-08. React registrations now accept Worker messages only while their configuration generation still owns the hook state.
+**Status:** Slices 01 and 02 completed on 2026-10-08. React registrations reject obsolete generations, and Worker route admission is authoritative after the first route message.
 
-Continue with [Slice 02 — Authoritative route admission](slices/02-authoritative-route-admission.md). Keep its Worker admission boundary independent from the React generation ownership completed in Slice 01.
+Continue with [Slice 03 — Verification and release](slices/03-verification-and-release.md). Preserve both runtime boundaries while adding only the sterile type-check and complete verification command.
 
 Warnings:
 
 - Route components unmount on every route change. Supporting still-mounted inactive hooks or later reactivation is out of scope.
 - `setActiveRoute()` cleanup may complete asynchronously.
+- Worker registration admission is now authoritative after the first route message; preserve the pre-route compatibility state.
 - Existing deletions under `specs/done/runtime-correctness/` are unrelated and must remain untouched.
 - The repository's package-manager supply-chain policy currently rejects recently published locked Rollup binaries. Slice 01 verification used the already-installed pinned tools directly.
 
 Slice 01 evidence: the browser project passed 12 tests, the focused Worker unit file passed 10 tests, focused lint passed with zero warnings, and production plus test type checks passed after building package declarations.
 
+Slice 02 evidence: the Worker unit file passed 15 tests, the full unit project passed 24 tests, lint passed, and TypeScript checks passed.
+
 Global checklist:
 
 - [x] [Slice 01](slices/01-react-registration-ownership.md): reject messages from obsolete React registrations while retaining passive effects.
-- [ ] [Slice 02](slices/02-authoritative-route-admission.md): make the worker reject registrations outside the active route.
+- [x] [Slice 02](slices/02-authoritative-route-admission.md): make the worker reject registrations outside the active route.
 - [ ] [Slice 03](slices/03-verification-and-release.md): make type checking sterile and add the complete verification gate.
 
 ## Goal

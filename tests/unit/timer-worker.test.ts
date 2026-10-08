@@ -79,15 +79,72 @@ describe("timer worker", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("keeps an active empty-string group and removes other groups", () => {
-    send({ type: "register", routeKey: "", id: "kept", mode: "up" });
-    send({ type: "register", routeKey: "removed", id: "removed", mode: "up" });
-    send({ type: "route", activeRoute: "" });
-    outgoing = [];
+  it("accepts registrations before the first route message", () => {
+    send({ type: "register", routeKey: "first", id: "first", mode: "up" });
+    send({ type: "register", routeKey: "second", id: "second", mode: "up" });
+
+    expect(outgoing).toEqual([
+      { type: "tick", id: "first", mode: "up", secondsElapsed: 0 },
+      { type: "tick", id: "second", mode: "up", secondsElapsed: 0 },
+    ]);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it("silently rejects inactive countdown and count-up registrations without scheduling work", () => {
+    send({ type: "route", activeRoute: "active" });
+    send({ type: "register", routeKey: "inactive", id: "countdown", mode: "down", durationSeconds: 0 });
+    send({ type: "register", routeKey: "inactive", id: "count-up", mode: "up" });
+
+    expect(outgoing).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+
+    vi.advanceTimersByTime(2000);
+    expect(outgoing).toEqual([]);
+  });
+
+  it("treats unregister after a rejected registration as an idempotent no-op", () => {
+    send({ type: "route", activeRoute: "active" });
+    send({ type: "register", routeKey: "inactive", id: "ignored", mode: "up" });
+
+    send({ type: "unregister", routeKey: "inactive", id: "ignored" });
+    send({ type: "unregister", routeKey: "inactive", id: "ignored" });
+
+    expect(outgoing).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("projects and schedules a registration matching the active route", () => {
+    send({ type: "route", activeRoute: "active" });
+    send({ type: "register", routeKey: "active", id: "accepted", mode: "up" });
+
+    expect(outgoing).toEqual([{ type: "tick", id: "accepted", mode: "up", secondsElapsed: 0 }]);
+    expect(vi.getTimerCount()).toBe(1);
 
     vi.advanceTimersByTime(1900);
+    expect(outgoing.at(-1)).toEqual({ type: "tick", id: "accepted", mode: "up", secondsElapsed: 1 });
+  });
 
-    expect(outgoing).toEqual([{ type: "tick", id: "kept", mode: "up", secondsElapsed: 1 }]);
+  it("accepts an empty-string active route and rejects other route keys", () => {
+    send({ type: "route", activeRoute: "" });
+    send({ type: "register", routeKey: "other", id: "rejected", mode: "up" });
+    send({ type: "register", routeKey: "", id: "accepted", mode: "up" });
+
+    expect(outgoing).toEqual([{ type: "tick", id: "accepted", mode: "up", secondsElapsed: 0 }]);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it("does not revive a purged timer from a delayed inactive registration", () => {
+    send({ type: "register", routeKey: "old", id: "timer", mode: "up" });
+    send({ type: "route", activeRoute: "new" });
+    outgoing = [];
+
+    send({ type: "register", routeKey: "old", id: "timer", mode: "up" });
+
+    expect(outgoing).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+
+    vi.advanceTimersByTime(2000);
+    expect(outgoing).toEqual([]);
   });
 
   it("removes the final expired timer and stops scheduled work", () => {

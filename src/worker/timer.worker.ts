@@ -136,6 +136,7 @@ self.addEventListener("message", (e: MessageEvent<TimerWorkerIncomingMessage>): 
   }
 
   if (data.type === "register") {
+    if (activeRoute !== null && data.routeKey !== activeRoute) return;
     const now = Date.now();
     const safeDuration = data.mode === "down" ? normalizeDurationSeconds(data.durationSeconds) : 0;
     const anchorEpochMs = data.mode === "down" ? now + safeDuration * 1000 : now;
