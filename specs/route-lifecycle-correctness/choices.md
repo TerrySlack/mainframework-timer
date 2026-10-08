@@ -19,3 +19,12 @@
 - **The reach:** Registration remains the only owner of admission; no second route registry or rejection protocol exists.
 - **Verdict:** Sound — the one-caller condition is clearest where it prevents time reads, normalization, insertion, projection, and loop startup.
 - **Confidence:** High.
+
+### Build consumer declarations before linting the usage fixture
+
+- **When:** Slice 03 — verification and release.
+- **The choice:** `pnpm verify` runs the sterile source check first, then the unit command that builds package declarations, and only then lint. The type-usage fixture imports the package exactly as a consumer does, so lint cannot resolve it in a clean checkout until `dist/types` exists. The alternative was to weaken type-aware linting or make the fixture resolve source files, either of which would stop checking the consumer boundary it exists to prove.
+- **The gap:** The planned order placed lint before every build and assumed lint did not depend on generated declarations.
+- **The reach:** Verification remains clean-checkout-safe without adding a second TypeScript configuration or changing what the consumer fixture imports.
+- **Verdict:** Sound — command order satisfies the existing ownership boundaries without weakening a gate.
+- **Confidence:** High.

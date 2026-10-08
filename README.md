@@ -94,6 +94,8 @@ Use `addEventListener` rather than assigning `worker.onmessage`; the singleton m
 
 `setActiveRoute(key)` is optional application-controlled cleanup despite its historical name. It keeps the named group and permanently removes timers in every other group. The package does not observe navigation or depend on a routing library.
 
+After the worker processes the route change, the named group is authoritative: later registrations for other groups are silently discarded. Calling `setActiveRoute` again replaces that authority with the new key.
+
 ```js
 import { setActiveRoute } from "@mainframework/timer";
 

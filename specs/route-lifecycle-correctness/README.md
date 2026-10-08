@@ -2,9 +2,9 @@
 
 ## Next Agent Prompt
 
-**Status:** Slices 01 and 02 completed on 2026-10-08. React registrations reject obsolete generations, and Worker route admission is authoritative after the first route message.
+**Status:** All three implementation slices completed on 2026-10-08. Final whole-spec review and archival remain.
 
-Continue with [Slice 03 — Verification and release](slices/03-verification-and-release.md). Preserve both runtime boundaries while adding only the sterile type-check and complete verification command.
+Run the whole-spec review against the complete feature, consolidate `choices.md` against the shipped code, rerun `pnpm verify`, and archive the spec with `close-spec`.
 
 Warnings:
 
@@ -12,17 +12,18 @@ Warnings:
 - `setActiveRoute()` cleanup may complete asynchronously.
 - Worker registration admission is now authoritative after the first route message; preserve the pre-route compatibility state.
 - Existing deletions under `specs/done/runtime-correctness/` are unrelated and must remain untouched.
-- The repository's package-manager supply-chain policy currently rejects recently published locked Rollup binaries. Slice 01 verification used the already-installed pinned tools directly.
 
 Slice 01 evidence: the browser project passed 12 tests, the focused Worker unit file passed 10 tests, focused lint passed with zero warnings, and production plus test type checks passed after building package declarations.
 
 Slice 02 evidence: the Worker unit file passed 15 tests, the full unit project passed 24 tests, lint passed, and TypeScript checks passed.
 
+Slice 03 evidence: sterile `pnpm tscheck` left no build-information or source-adjacent output, and `pnpm verify` passed from a clean generated-file state.
+
 Global checklist:
 
 - [x] [Slice 01](slices/01-react-registration-ownership.md): reject messages from obsolete React registrations while retaining passive effects.
 - [x] [Slice 02](slices/02-authoritative-route-admission.md): make the worker reject registrations outside the active route.
-- [ ] [Slice 03](slices/03-verification-and-release.md): make type checking sterile and add the complete verification gate.
+- [x] [Slice 03](slices/03-verification-and-release.md): make type checking sterile and add the complete verification gate.
 
 ## Goal
 

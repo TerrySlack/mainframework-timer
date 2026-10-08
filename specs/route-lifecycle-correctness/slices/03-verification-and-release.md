@@ -17,10 +17,10 @@ tsc --noEmit --emitDeclarationOnly false --incremental false
 Add `verify` with this existing-script sequence:
 
 ```text
-pnpm lint && pnpm tscheck && pnpm test && pnpm test:browser && pnpm test:package && pnpm test:types
+pnpm tscheck && pnpm test && pnpm lint && pnpm test:browser && pnpm test:package && pnpm test:types
 ```
 
-Do not disable incremental compilation in `tsconfig.json`; declaration builds may continue using it. Do not replace the existing test-project boundaries or add a wrapper script.
+The sterile check runs before any build. The unit command then builds the package declarations that the consumer-style type fixture imports, allowing lint to run from a clean checkout without weakening its type-aware rules. Do not disable incremental compilation in `tsconfig.json`; declaration builds may continue using it. Do not replace the existing test-project boundaries or add a wrapper script.
 
 Update `README.md` only where the runtime contract changed: once a route message is processed, later registrations for other route keys are silently discarded. Keep route cleanup optional and application-controlled.
 

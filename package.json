@@ -56,7 +56,8 @@
     "test:browser": "pnpm build && vitest run --project browser",
     "test:package": "pnpm build && vitest run --project package",
     "test:types": "pnpm build && tsc -p tsconfig.test.json",
-    "tscheck": "tsc --noEmit --emitDeclarationOnly false"
+    "tscheck": "tsc --noEmit --emitDeclarationOnly false --incremental false",
+    "verify": "pnpm tscheck && pnpm test && pnpm lint && pnpm test:browser && pnpm test:package && pnpm test:types"
   },
   "devDependencies": {
     "@babel/core": "^8.0.7",
