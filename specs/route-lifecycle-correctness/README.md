@@ -15,7 +15,7 @@ Warnings:
 
 Slice 01 evidence: the browser project passed 12 tests, the focused Worker unit file passed 10 tests, focused lint passed with zero warnings, and production plus test type checks passed after building package declarations.
 
-Slice 02 evidence: the Worker unit file passed 15 tests, the full unit project passed 24 tests, lint passed, and TypeScript checks passed.
+Slice 02 evidence: the Worker unit file passed 16 tests, including preservation and admission for the empty-string route; the full unit project passed 25 tests, lint passed, and TypeScript checks passed.
 
 Slice 03 evidence: sterile `pnpm tscheck` left no build-information or source-adjacent output, and `pnpm verify` passed from a clean generated-file state.
 

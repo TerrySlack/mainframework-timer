@@ -124,6 +124,17 @@ describe("timer worker", () => {
     expect(outgoing.at(-1)).toEqual({ type: "tick", id: "accepted", mode: "up", secondsElapsed: 1 });
   });
 
+  it("keeps an existing empty-string group and removes other groups", () => {
+    send({ type: "register", routeKey: "", id: "kept", mode: "up" });
+    send({ type: "register", routeKey: "removed", id: "removed", mode: "up" });
+    send({ type: "route", activeRoute: "" });
+    outgoing = [];
+
+    vi.advanceTimersByTime(1900);
+
+    expect(outgoing).toEqual([{ type: "tick", id: "kept", mode: "up", secondsElapsed: 1 }]);
+  });
+
   it("accepts an empty-string active route and rejects other route keys", () => {
     send({ type: "route", activeRoute: "" });
     send({ type: "register", routeKey: "other", id: "rejected", mode: "up" });
