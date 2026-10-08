@@ -41,10 +41,10 @@
 ### Key displayed state by the timer configuration
 
 - **When:** Slice 03 — React lifecycle.
-- **The choice:** State stores both the last worker value and the duration, group key, and mode that produced it. When props describe a new timer, render returns that timer's normalized initial value immediately instead of showing the old timer's value until an effect calls `setState`. The unbuilt alternative was synchronously resetting state inside the effect, which React flags as an avoidable cascading render.
+- **The choice:** State stores both the last worker value and the duration, group key, and mode that produced it. When props describe a new timer, the hook conditionally replaces that state during render with the new normalized initial value. This also prevents an A → B → A sequence from reviving A's old tick value. The unbuilt alternative was resetting inside the effect, which React flags as an avoidable cascading render and which can paint stale data.
 - **The gap:** The plan required immediate resets but delegated the internal state representation.
 - **The reach:** Prop changes cannot flash stale values, and count-up duration changes preserve elapsed state because their effective configuration does not change.
-- **Verdict:** Sound — one state record ties each value to the timer that owns it without adding another registration flag.
+- **Verdict:** Sound — React supports guarded state adjustment during render, and one state record ties each value to the timer that owns it without adding another registration flag.
 - **Confidence:** High.
 
 ### Make the type-check command read-only
@@ -54,4 +54,13 @@
 - **The gap:** The plan required clean packed declarations but did not identify that the existing type-check command emitted them.
 - **The reach:** Verification order can no longer change package contents. `pnpm build` is the only command that owns publishable declarations.
 - **Verdict:** Sound — a command named type-check should report errors, not produce release artifacts.
+- **Confidence:** High.
+
+### Exercise the tarball through a plain HTTP server
+
+- **When:** Whole-spec review.
+- **The choice:** `pnpm test:package` creates the real package archive, extracts it, serves those extracted files directly, and loads the root entry plus its module worker in Chromium. The `tar` development dependency performs extraction consistently across operating systems. The unbuilt alternative was importing `dist` through Vitest's Vite server, which can rewrite worker URLs and does not prove that the archive includes every required file.
+- **The gap:** The plan called the packed artifact the release oracle but delegated the package fixture details.
+- **The reach:** Changes to `files`, emitted paths, package contents, or the worker's relative URL now fail at the same boundary consumers receive.
+- **Verdict:** Sound — it tests the published unit rather than a friendlier development graph.
 - **Confidence:** High.

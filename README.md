@@ -49,6 +49,7 @@ const worker = createWorker();
 const id = crypto.randomUUID();
 const routeKey = getDefaultRouteKey();
 
+/** @param {MessageEvent<import("@mainframework/timer").TimerWorkerMessage>} event */
 const handleMessage = (event) => {
   const message = event.data;
   if (!message || message.id !== id) return;
@@ -76,10 +77,13 @@ worker.postMessage({ type: "unregister", routeKey, id });
 Count-up registration omits the duration:
 
 ```js
+import { createWorker } from "@mainframework/timer";
+
+const worker = createWorker();
 worker.postMessage({
   type: "register",
-  routeKey,
-  id,
+  routeKey: "stopwatch",
+  id: crypto.randomUUID(),
   mode: "up",
 });
 ```
@@ -100,19 +104,19 @@ setActiveRoute("current-workspace");
 
 ### `@mainframework/timer`
 
-| Export | Contract |
-| --- | --- |
-| `createWorker()` | Returns the singleton browser `Worker`. |
-| `getDefaultRouteKey()` | Returns `window.location.pathname` as a convenience grouping key. |
-| `setActiveRoute(key)` | Keeps one timer group and purges the others. |
-| `TimerMode` | `"down" \| "up"` |
-| `TimerWorkerIncomingMessage` | Main thread to worker protocol. |
-| `TimerWorkerMessage` | Worker to main thread protocol. |
+| Export                       | Contract                                                          |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `createWorker()`             | Returns the singleton browser `Worker`.                           |
+| `getDefaultRouteKey()`       | Returns `window.location.pathname` as a convenience grouping key. |
+| `setActiveRoute(key)`        | Keeps one timer group and purges the others.                      |
+| `TimerMode`                  | `"down" \| "up"`                                                  |
+| `TimerWorkerIncomingMessage` | Main thread to worker protocol.                                   |
+| `TimerWorkerMessage`         | Worker to main thread protocol.                                   |
 
 ### `@mainframework/timer/react`
 
-| Export | Contract |
-| --- | --- |
+| Export                                        | Contract                                    |
+| --------------------------------------------- | ------------------------------------------- |
 | `useTimer(durationSeconds, routeKey?, mode?)` | Returns remaining or elapsed whole seconds. |
 
 The exported protocol types are the source of truth for message payloads. Countdown registration requires `durationSeconds`; count-up registration does not accept it. Countdown completion emits `expired` once.

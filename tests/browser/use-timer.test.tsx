@@ -149,6 +149,33 @@ describe("useTimer", () => {
     expect(worker.messages.at(-1)).not.toHaveProperty("durationSeconds");
   });
 
+  it("does not revive an old value when a previous configuration returns", () => {
+    const mounted = mount(<Probe duration={10} routeKey="a" />);
+    const worker = getWorker();
+    const firstRegistration = worker.messages.at(-1);
+    const output = mounted.container.querySelector("output");
+
+    act(() => {
+      worker.emit({
+        type: "tick",
+        id: firstRegistration?.id ?? "",
+        mode: "down",
+        secondsLeft: 5,
+      });
+    });
+    expect(output?.textContent).toBe("5");
+
+    act(() => {
+      mounted.root.render(<Probe duration={20} routeKey="b" />);
+    });
+    expect(output?.textContent).toBe("20");
+
+    act(() => {
+      mounted.root.render(<Probe duration={10} routeKey="a" />);
+    });
+    expect(output?.textContent).toBe("10");
+  });
+
   it("ignores duration changes in count-up mode", () => {
     const mounted = mount(<Probe duration={0} routeKey="up" mode="up" />);
     const worker = getWorker();

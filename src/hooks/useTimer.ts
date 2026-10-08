@@ -46,12 +46,20 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
     mode,
     value: effectiveDuration,
   });
-  const value =
-    timerState.durationSeconds === effectiveDuration &&
-    timerState.routeKey === activeRouteKey &&
-    timerState.mode === mode
-      ? timerState.value
-      : effectiveDuration;
+  const configurationChanged =
+    timerState.durationSeconds !== effectiveDuration ||
+    timerState.routeKey !== activeRouteKey ||
+    timerState.mode !== mode;
+  let value = timerState.value;
+  if (configurationChanged) {
+    value = effectiveDuration;
+    setTimerState({
+      durationSeconds: effectiveDuration,
+      routeKey: activeRouteKey,
+      mode,
+      value,
+    });
+  }
 
   useEffect(() => {
     const currentWorker = createWorker();

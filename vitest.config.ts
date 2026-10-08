@@ -23,6 +23,14 @@ export default defineConfig({
           },
         },
       },
+      {
+        test: {
+          name: "package",
+          environment: "node",
+          include: ["tests/package/**/*.test.ts"],
+          testTimeout: 15000,
+        },
+      },
     ],
   },
 });

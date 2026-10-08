@@ -13,10 +13,7 @@ describe("timer worker", () => {
     outgoing = [];
 
     vi.stubGlobal("self", {
-      addEventListener: (
-        type: string,
-        listener: (event: MessageEvent<TimerWorkerIncomingMessage>) => void,
-      ): void => {
+      addEventListener: (type: string, listener: (event: MessageEvent<TimerWorkerIncomingMessage>) => void): void => {
         if (type === "message") handleMessage = listener;
       },
       postMessage: (message: TimerWorkerMessage): void => {
@@ -45,6 +42,22 @@ describe("timer worker", () => {
 
     vi.advanceTimersByTime(2000);
     expect(outgoing).toEqual([{ type: "expired", id: "zero" }]);
+  });
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "normalizes an invalid %s countdown at the worker boundary",
+    (durationSeconds) => {
+      send({ type: "register", routeKey: "invalid", id: "invalid", mode: "down", durationSeconds });
+
+      expect(outgoing).toEqual([{ type: "expired", id: "invalid" }]);
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it("floors a fractional countdown at the worker boundary", () => {
+    send({ type: "register", routeKey: "fraction", id: "fraction", mode: "down", durationSeconds: 1.9 });
+
+    expect(outgoing).toEqual([{ type: "tick", id: "fraction", mode: "down", secondsLeft: 1 }]);
   });
 
   it("projects only the newly registered timer", () => {
