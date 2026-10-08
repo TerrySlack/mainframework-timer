@@ -69,6 +69,7 @@ const RaceProbe = ({ duration, routeKey, mode, onCommit, staleMessage }: RacePro
 
 const ReturnToInitialProbe = ({ enabled, onCommit, staleMessage }: ReturnToInitialProbeProps) => {
   const [phase, setPhase] = useState(0);
+  if (enabled && phase < 2) setPhase(phase + 1);
   const configuration = phase === 1 ? "b" : "a";
   const value = useTimer(configuration === "a" ? 10 : 20, configuration);
 
@@ -76,15 +77,7 @@ const ReturnToInitialProbe = ({ enabled, onCommit, staleMessage }: ReturnToIniti
     onCommit(value);
   });
   useLayoutEffect(() => {
-    if (!enabled) return;
-    if (phase === 0) {
-      setPhase(1);
-      return;
-    }
-    if (phase === 1) {
-      if (staleMessage) getWorker().emit(staleMessage);
-      setPhase(2);
-    }
+    if (enabled && phase === 2 && staleMessage) getWorker().emit(staleMessage);
   }, [enabled, phase, staleMessage]);
 
   return <output>{value}</output>;
@@ -291,7 +284,7 @@ describe("useTimer", () => {
       mounted.root.render(<ReturnToInitialProbe enabled onCommit={recordCommit} staleMessage={staleMessage} />);
     });
 
-    expect(commits).toEqual([10, 20, 10]);
+    expect(commits).toEqual([10]);
     expect(mounted.container.querySelector("output")?.textContent).toBe("10");
   });
 
