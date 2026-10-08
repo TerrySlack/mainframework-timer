@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { createWorker } from "../worker/createWorker";
 import { getDefaultRouteKey } from "../utils/routes";
@@ -6,8 +6,16 @@ import type { TimerMode, TimerWorkerMessage } from "../types";
 import { normalizeDurationSeconds } from "../utils/duration";
 
 type Listener = (msg: TimerWorkerMessage) => void;
+interface TimerState {
+  durationSeconds: number;
+  routeKey: string;
+  mode: TimerMode;
+  value: number;
+}
+
 const listeners = new Map<string, Listener>();
 let workerListenerAttached = false;
+let nextTimerId = 0;
 
 const ensureWorkerListener = (worker: Worker): void => {
   if (workerListenerAttached) return;
@@ -29,66 +37,68 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
     throw new Error("@mainframework/timer is client-side only and requires a window environment.");
   }
 
-  const id = useId();
-  const currentWorker = createWorker();
   const activeRouteKey = routeKey ?? getDefaultRouteKey();
   const effectiveDuration = mode === "down" ? normalizeDurationSeconds(durationSeconds) : 0;
 
-  const [value, setValue] = useState(effectiveDuration);
-  const lastRegister = useRef<{ durationSeconds: number; routeKey: string; mode: TimerMode } | null>(null);
+  const [timerState, setTimerState] = useState<TimerState>({
+    durationSeconds: effectiveDuration,
+    routeKey: activeRouteKey,
+    mode,
+    value: effectiveDuration,
+  });
+  const value =
+    timerState.durationSeconds === effectiveDuration &&
+    timerState.routeKey === activeRouteKey &&
+    timerState.mode === mode
+      ? timerState.value
+      : effectiveDuration;
 
-  useLayoutEffect(() => {
+  useEffect(() => {
+    const currentWorker = createWorker();
+    const id = `@mainframework/timer:${++nextTimerId}`;
     ensureWorkerListener(currentWorker);
 
     const handleMessage = (msg: TimerWorkerMessage): void => {
-      if (msg.type === "tick" && msg.mode === "down") setValue(msg.secondsLeft);
-      if (msg.type === "tick" && msg.mode === "up") setValue(msg.secondsElapsed);
-      if (msg.type === "expired") setValue(0);
+      let nextValue: number;
+      if (msg.type === "tick" && msg.mode === "down") nextValue = msg.secondsLeft;
+      else if (msg.type === "tick" && msg.mode === "up") nextValue = msg.secondsElapsed;
+      else nextValue = 0;
+      setTimerState({
+        durationSeconds: effectiveDuration,
+        routeKey: activeRouteKey,
+        mode,
+        value: nextValue,
+      });
     };
 
     listeners.set(id, handleMessage);
 
-    const prev = lastRegister.current;
-    if (!prev || prev.durationSeconds !== effectiveDuration || prev.routeKey !== activeRouteKey || prev.mode !== mode) {
-      if (prev && prev.routeKey !== activeRouteKey) {
-        currentWorker.postMessage({
-          type: "unregister",
-          routeKey: prev.routeKey,
-          id,
-        });
-      }
-      if (prev && (prev.durationSeconds !== effectiveDuration || prev.mode !== mode || prev.routeKey !== activeRouteKey)) {
-        setValue(effectiveDuration);
-      }
-      lastRegister.current = { durationSeconds: effectiveDuration, routeKey: activeRouteKey, mode };
-      if (mode === "down") {
-        currentWorker.postMessage({
-          type: "register",
-          routeKey: activeRouteKey,
-          id,
-          mode,
-          durationSeconds: effectiveDuration,
-        });
-      } else {
-        currentWorker.postMessage({
-          type: "register",
-          routeKey: activeRouteKey,
-          id,
-          mode,
-        });
-      }
+    if (mode === "down") {
+      currentWorker.postMessage({
+        type: "register",
+        routeKey: activeRouteKey,
+        id,
+        mode,
+        durationSeconds: effectiveDuration,
+      });
+    } else {
+      currentWorker.postMessage({
+        type: "register",
+        routeKey: activeRouteKey,
+        id,
+        mode,
+      });
     }
 
     return () => {
       listeners.delete(id);
-      const registered = lastRegister.current;
       currentWorker.postMessage({
         type: "unregister",
-        routeKey: registered?.routeKey ?? activeRouteKey,
+        routeKey: activeRouteKey,
         id,
       });
     };
-  }, [id, activeRouteKey, currentWorker, effectiveDuration, mode]);
+  }, [activeRouteKey, effectiveDuration, mode]);
 
   return value;
 };

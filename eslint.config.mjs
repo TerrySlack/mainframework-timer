@@ -19,7 +19,6 @@ export default [
       "pnpm-lock.yaml",
       "package-lock.json",
       "yarn.lock",
-      "jest.worker-setup.ts",
     ],
   },
 
@@ -64,7 +63,6 @@ export default [
     },
     rules: {
       ...(reactHooks.configs?.recommended?.rules ?? {}),
-      "react-hooks/refs": "off",
       "react-compiler/react-compiler": "error",
     },
   },
@@ -80,7 +78,7 @@ export default [
     },
   },
 
-  // 8) Test files: relax strict rules for Jest matchers
+  // 8) Test files: relax strict rules for test matchers
   {
     files: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
     rules: {

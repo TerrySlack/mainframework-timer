@@ -28,3 +28,21 @@
 - **The reach:** Future worker tests should keep driving the actual message boundary. Pure helpers may still be tested directly when their result is the contract.
 - **Verdict:** Sound — it provides deterministic time without bypassing production message handling.
 - **Confidence:** High.
+
+### Keep timer setup in a passive React effect
+
+- **When:** Slice 03 — React lifecycle.
+- **The choice:** `useTimer` now displays its normalized initial value during render and connects to the worker in `useEffect`, React's passive effect for synchronizing with external systems. It does not block browser painting with `useLayoutEffect`. The unbuilt alternative was retaining a layout effect even though no DOM measurement or before-paint correction remains.
+- **The gap:** The plan delegated the effect type as long as setup and cleanup stayed symmetric.
+- **The reach:** Worker registration happens after commit, while the hook's returned value is available immediately. Future lifecycle work should not move worker creation back into render to make registration earlier.
+- **Verdict:** Sound — the rendered value no longer depends on synchronous effect state updates, so a paint-blocking effect has no job.
+- **Confidence:** High.
+
+### Key displayed state by the timer configuration
+
+- **When:** Slice 03 — React lifecycle.
+- **The choice:** State stores both the last worker value and the duration, group key, and mode that produced it. When props describe a new timer, render returns that timer's normalized initial value immediately instead of showing the old timer's value until an effect calls `setState`. The unbuilt alternative was synchronously resetting state inside the effect, which React flags as an avoidable cascading render.
+- **The gap:** The plan required immediate resets but delegated the internal state representation.
+- **The reach:** Prop changes cannot flash stale values, and count-up duration changes preserve elapsed state because their effective configuration does not change.
+- **Verdict:** Sound — one state record ties each value to the timer that owns it without adding another registration flag.
+- **Confidence:** High.
