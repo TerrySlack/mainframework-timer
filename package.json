@@ -1,7 +1,7 @@
 {
   "name": "@mainframework/timer",
   "version": "0.1.0",
-  "description": "a timer wrapper for setInterval",
+  "description": "Browser countdown and count-up timers backed by a shared Web Worker",
   "author": "Terry Slack <tslack@mainframework.com>",
   "license": "MIT",
   "type": "module",
@@ -54,8 +54,8 @@
     "pretest": "pnpm build",
     "test": "vitest run --project unit",
     "test:browser": "pnpm build && vitest run --project browser",
-    "test:types": "tsc -p tsconfig.test.json",
-    "tscheck": "tsc"
+    "test:types": "pnpm build && tsc -p tsconfig.test.json",
+    "tscheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "devDependencies": {
     "@babel/core": "^8.0.7",

@@ -46,3 +46,12 @@
 - **The reach:** Prop changes cannot flash stale values, and count-up duration changes preserve elapsed state because their effective configuration does not change.
 - **Verdict:** Sound — one state record ties each value to the timer that owns it without adding another registration flag.
 - **Confidence:** High.
+
+### Make the type-check command read-only
+
+- **When:** Slice 04 — public contract and release.
+- **The choice:** `pnpm tscheck` now asks TypeScript to check without emitting files. Previously the command inherited declaration output settings and created a second declaration tree under `dist`, so running a verification command changed the package that would be published. The unbuilt alternative was teaching pack inspection to tolerate duplicated declarations.
+- **The gap:** The plan required clean packed declarations but did not identify that the existing type-check command emitted them.
+- **The reach:** Verification order can no longer change package contents. `pnpm build` is the only command that owns publishable declarations.
+- **Verdict:** Sound — a command named type-check should report errors, not produce release artifacts.
+- **Confidence:** High.

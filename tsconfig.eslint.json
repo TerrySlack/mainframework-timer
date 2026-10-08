@@ -3,6 +3,6 @@
   "compilerOptions": {
     "rootDir": "."
   },
-  "include": ["src", "tests", "eslint.config.mjs", "rollup.config.mjs", "vitest.config.ts"],
+  "include": ["src", "eslint.config.mjs", "rollup.config.mjs"],
   "exclude": ["dist", "node_modules"]
 }

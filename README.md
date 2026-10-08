@@ -1,19 +1,12 @@
 # @mainframework/timer
 
-Countdown and count-up timers for the browser, backed by a shared Web Worker. Timers tick off the main thread so your UI stays responsive.
+Countdown and count-up timers for browsers, backed by one shared Web Worker per loaded package instance.
 
-## Important: client-side only
+## Runtime contract
 
-This library is a **browser-only, client-side** package. It depends on `window`, `Worker`, and `window.location`.
+The root `@mainframework/timer` entry is framework-free browser JavaScript. The optional `@mainframework/timer/react` entry adapts the same worker for React 19 or later.
 
-- **Do not use** in Node.js, Express, or other server-side runtimes.
-- **Client-only enforcement:** Calling `createWorker()`, `getDefaultRouteKey()`, `setActiveRoute()`, or `useTimer()` when `window` is undefined throws an explicit runtime `Error`. There are no SSR fallback or no-op timer execution modes.
-
-## Requirements
-
-- A modern browser with Web Worker support
-- ESM environment supporting `import.meta.url`
-- React >= 19 (only when using `@mainframework/timer/react`)
+Timer APIs require `window` and `Worker`. Calling them during server execution throws an explicit error; the package does not provide a server timer, fallback, or no-op mode. The React bundle includes a `"use client"` directive for tools that understand React Server Components, but timer execution must still happen in a browser.
 
 ## Installation
 
@@ -21,19 +14,9 @@ This library is a **browser-only, client-side** package. It depends on `window`,
 npm install @mainframework/timer
 ```
 
-```bash
-pnpm add @mainframework/timer
-```
+React is an optional peer dependency. Install it only when using the React entry.
 
-React is an optional peer dependency. Install React separately if you use the hook entry:
-
-```bash
-npm install react
-```
-
-## React usage
-
-Import `useTimer` from the React entry point. The React entry ships with a `"use client"` directive, so it works in Next.js App Router without an extra directive on your component.
+## React
 
 ```tsx
 import { useTimer } from "@mainframework/timer/react";
@@ -44,41 +27,35 @@ export const Countdown = () => {
 };
 
 export const Stopwatch = () => {
-  const secondsElapsed = useTimer(0, undefined, "up");
+  const secondsElapsed = useTimer(0, "stopwatch", "up");
   return <span>{secondsElapsed}s</span>;
 };
 ```
 
-### `useTimer(durationSeconds, routeKey?, mode?)`
+`useTimer(durationSeconds, routeKey?, mode?)` returns remaining whole seconds in `"down"` mode and elapsed whole seconds in `"up"` mode.
 
-| Parameter         | Type             | Description                                                                    |
-| ----------------- | ---------------- | ------------------------------------------------------------------------------ |
-| `durationSeconds` | `number`         | For `"down"`: countdown length. For `"up"`: ignored (pass `0`).                |
-| `routeKey`        | `string?`        | Optional. Defaults to `window.location.pathname`. Scopes the timer to a route. |
-| `mode`            | `"down" \| "up"` | Optional. Default `"down"`.                                                    |
+- Countdown durations are floored to whole seconds. Zero, negative, `NaN`, and infinite values become zero.
+- Count-up mode ignores the duration and later duration changes.
+- `routeKey` is an arbitrary grouping key. When omitted, it defaults to `window.location.pathname`.
 
-Returns seconds remaining in `"down"` mode, or seconds elapsed in `"up"` mode. Emits ticks every second until the countdown reaches zero (`"down"` only).
+## Plain JavaScript
 
-## Vanilla JS usage
-
-The main entry exports low-level utilities. You register timers, listen for messages, and unregister yourself.
-
-Always use `worker.addEventListener("message", ...)` and `worker.removeEventListener("message", ...)` rather than `worker.onmessage`. Setting `worker.onmessage` overwrites any existing listener, which breaks other timers and components sharing the singleton worker.
-
-### Countdown
+The root entry exposes the shared worker and its typed message protocol. Timer IDs must be unique across that worker.
 
 ```js
 import { createWorker, getDefaultRouteKey } from "@mainframework/timer";
 
 const worker = createWorker();
-const timerId = crypto.randomUUID();
+const id = crypto.randomUUID();
 const routeKey = getDefaultRouteKey();
 
-const handleMessage = (e) => {
-  const msg = e.data;
-  if (!msg || msg.id !== timerId) return;
-  if (msg.type === "tick" && msg.mode === "down") console.log(msg.secondsLeft);
-  if (msg.type === "expired") console.log("done");
+const handleMessage = (event) => {
+  const message = event.data;
+  if (!message || message.id !== id) return;
+  if (message.type === "tick" && message.mode === "down") {
+    console.log(message.secondsLeft);
+  }
+  if (message.type === "expired") console.log("done");
 };
 
 worker.addEventListener("message", handleMessage);
@@ -86,95 +63,60 @@ worker.addEventListener("message", handleMessage);
 worker.postMessage({
   type: "register",
   routeKey,
-  id: timerId,
+  id,
   mode: "down",
   durationSeconds: 60,
 });
 
-// cleanup when done
+// Remove both owners when the consumer is done.
 worker.removeEventListener("message", handleMessage);
-worker.postMessage({ type: "unregister", routeKey, id: timerId });
+worker.postMessage({ type: "unregister", routeKey, id });
 ```
 
-### Count-up
+Count-up registration omits the duration:
 
 ```js
-import { createWorker, getDefaultRouteKey } from "@mainframework/timer";
-
-const worker = createWorker();
-const timerId = crypto.randomUUID();
-const routeKey = getDefaultRouteKey();
-
-const handleMessage = (e) => {
-  const msg = e.data;
-  if (!msg || msg.id !== timerId) return;
-  if (msg.type === "tick" && msg.mode === "up") console.log(msg.secondsElapsed);
-};
-
-worker.addEventListener("message", handleMessage);
-
 worker.postMessage({
   type: "register",
   routeKey,
-  id: timerId,
+  id,
   mode: "up",
 });
-
-// cleanup when done
-worker.removeEventListener("message", handleMessage);
-worker.postMessage({ type: "unregister", routeKey, id: timerId });
 ```
 
-### Route management (SPAs)
+Use `addEventListener` rather than assigning `worker.onmessage`; the singleton may serve multiple consumers.
 
-When navigating between routes, notify the worker of the active route to purge timers from inactive routes:
+## Group cleanup
+
+`setActiveRoute(key)` is optional application-controlled cleanup despite its historical name. It keeps the named group and permanently removes timers in every other group. The package does not observe navigation or depend on a routing library.
 
 ```js
 import { setActiveRoute } from "@mainframework/timer";
 
-setActiveRoute("/dashboard");
+setActiveRoute("current-workspace");
 ```
 
-## API reference
+## Public API
 
 ### `@mainframework/timer`
 
-| Export                       | Description                                                              |
-| ---------------------------- | ------------------------------------------------------------------------ |
-| `createWorker()`             | Returns the singleton `Worker`. Throws outside a browser environment.    |
-| `getDefaultRouteKey()`       | Returns `window.location.pathname`. Throws outside a browser environment.|
-| `setActiveRoute(routeKey)`   | Broadcasts the active route to the worker to purge inactive timers.      |
-| `TimerMode`                  | Type: `"down" \| "up"`.                                                  |
-| `TimerWorkerIncomingMessage` | Type for main thread → worker messages.                                  |
-| `TimerWorkerMessage`         | Type for worker → main thread messages.                                  |
+| Export | Contract |
+| --- | --- |
+| `createWorker()` | Returns the singleton browser `Worker`. |
+| `getDefaultRouteKey()` | Returns `window.location.pathname` as a convenience grouping key. |
+| `setActiveRoute(key)` | Keeps one timer group and purges the others. |
+| `TimerMode` | `"down" \| "up"` |
+| `TimerWorkerIncomingMessage` | Main thread to worker protocol. |
+| `TimerWorkerMessage` | Worker to main thread protocol. |
 
 ### `@mainframework/timer/react`
 
-| Export                                        | Description                                                            |
-| --------------------------------------------- | ---------------------------------------------------------------------- |
-| `useTimer(durationSeconds, routeKey?, mode?)` | React hook returning seconds remaining (`"down"`) or elapsed (`"up"`). |
+| Export | Contract |
+| --- | --- |
+| `useTimer(durationSeconds, routeKey?, mode?)` | Returns remaining or elapsed whole seconds. |
 
-### Worker message protocol
-
-**Main thread → worker (`TimerWorkerIncomingMessage`):**
-
-| Type         | Payload                                                                                                  |
-| ------------ | -------------------------------------------------------------------------------------------------------- |
-| `register`   | `{ routeKey, id, mode, durationSeconds? }` — `durationSeconds` required for `"down"`, omitted for `"up"` |
-| `unregister` | `{ routeKey, id }`                                                                                       |
-| `route`      | `{ activeRoute }`                                                                                        |
-
-**Worker → main thread (`TimerWorkerMessage`):**
-
-| Type          | Payload                              |
-| ------------- | ------------------------------------ |
-| `tick` (down) | `{ id, mode: "down", secondsLeft }`  |
-| `tick` (up)   | `{ id, mode: "up", secondsElapsed }` |
-| `expired`     | `{ id }` — countdown only            |
+The exported protocol types are the source of truth for message payloads. Countdown registration requires `durationSeconds`; count-up registration does not accept it. Countdown completion emits `expired` once.
 
 ## License
 
 MIT — see [package.json](./package.json).
-
-- Repository: [github.com/TerrySlack/mainframework-timer](https://github.com/TerrySlack/mainframework-timer)
-- Issues: [github.com/TerrySlack/mainframework-timer/issues](https://github.com/TerrySlack/mainframework-timer/issues)

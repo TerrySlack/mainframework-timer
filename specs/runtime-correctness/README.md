@@ -8,17 +8,17 @@ This plan supersedes the completed optimization plan that established the browse
 
 You are implementing the runtime-correctness plan for `@mainframework/timer`.
 
-- **Status:** Slices 01–03 complete on 2026-10-08.
-- **Next pickup:** Implement [Slice 04](slices/04-public-contract-and-release.md).
+- **Status:** All four slices complete on 2026-10-08; final review and closeout remain.
+- **Next pickup:** Run the whole-spec review, consolidate `choices.md`, and close the spec.
 - **Warning:** A successful Rollup build is not proof that the emitted worker loads. Test the published package surface.
 - **Baseline:** Preserve the current browser-only hard cutover. Do not add SSR fallbacks, router integration, or compatibility shims.
 - **Checklist:**
   - [x] [Slice 01 — Packaged worker and test seam](slices/01-packaged-worker-and-test-seam.md)
   - [x] [Slice 02 — Worker contract and duration](slices/02-worker-contract-and-duration.md)
   - [x] [Slice 03 — React lifecycle](slices/03-react-lifecycle.md)
-  - [ ] [Slice 04 — Public contract and release](slices/04-public-contract-and-release.md)
+  - [x] [Slice 04 — Public contract and release](slices/04-public-contract-and-release.md)
 
-- **Evidence:** The built root entry loads `dist/worker/timer.worker.js` in Chromium. Worker tests cover the protocol and timer cleanup. React browser tests cover Strict Mode symmetry, final unmount, stable rerenders, countdown changes, count-up duration changes, and independent roots. Unit tests, browser tests, test type-checking, lint, build, and pack inspection pass.
+- **Evidence:** The built root entry loads `dist/worker/timer.worker.js` in Chromium. Worker and React lifecycle tests cover the runtime contracts. Packed entries, declarations, the `"use client"` directive, README examples, browser behavior, lint, source and test type-checking, build output, and the pack list pass their release gates.
 
 Update this section before ending every implementation pass.
 
