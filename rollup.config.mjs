@@ -3,7 +3,6 @@ import resolve from "@rollup/plugin-node-resolve";
 import typescript from "@rollup/plugin-typescript";
 import babel from "@rollup/plugin-babel";
 import terser from "@rollup/plugin-terser";
-import {importMetaAssets} from "@web/rollup-plugin-import-meta-assets";
 
 const reactCompilerOptions = {
   target: "19",
@@ -41,7 +40,6 @@ export default {
       plugins: [["babel-plugin-react-compiler", reactCompilerOptions]],
       presets: ["@babel/preset-typescript"],
     }),
-    importMetaAssets(),
     typescript({
       tsconfig: "./tsconfig.json",
       declaration: true,

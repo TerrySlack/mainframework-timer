@@ -1,4 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["src", "eslint.config.mjs", "rollup.config.mjs"]
+  "compilerOptions": {
+    "rootDir": "."
+  },
+  "include": ["src", "eslint.config.mjs", "rollup.config.mjs"],
+  "exclude": ["dist", "node_modules"]
 }

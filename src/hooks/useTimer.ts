@@ -3,16 +3,18 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createWorker } from "../worker/createWorker";
 import { getDefaultRouteKey } from "../utils/routes";
 import type { TimerMode, TimerWorkerMessage } from "../types";
+const windoExists = typeof window !== "undefined";
 
-const worker = createWorker();
+let worker: Worker | undefined = undefined;
+if (windoExists) {
+  worker = createWorker();
+}
 // One shared dispatcher so every hook instance gets its own messages
 const listeners = new Map<string, (msg: TimerWorkerMessage) => void>();
 
 if (worker && !worker.onmessage) {
-  console.log(`1 - worker created`);
   worker.onmessage = (e: MessageEvent<TimerWorkerMessage>): void => {
     const msg = e.data;
-    console.log(`2 - In onmessage ${JSON.stringify(msg)}`);
     if (!msg?.id) return;
     listeners.get(msg.id)?.(msg);
   };
@@ -29,31 +31,30 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
   const [value, setValue] = useState(mode === "down" ? durationSeconds : 0);
   const keyRef = useRef<string>(routeKey ?? getDefaultRouteKey());
 
-  if (worker) {
-    console.log(`3 - In useTimer id ${id}`);
-    listeners.set(id, (msg: TimerWorkerMessage): void => {
-      console.log(`4 - In useTimer listeners callback msg ${JSON.stringify(msg)}`);
-      if (msg.type === "tick" && msg.mode === "down") setValue(msg.secondsLeft);
-      if (msg.type === "tick" && msg.mode === "up") setValue(msg.secondsElapsed);
-      if (msg.type === "expired") setValue(0);
-    });
-
-    const prev = lastRegister.current;
-    if (!prev || prev.durationSeconds !== durationSeconds || prev.routeKey !== keyRef.current || prev.mode !== mode) {
-      lastRegister.current = { durationSeconds, routeKey: keyRef.current, mode };
-      worker.postMessage({
-        type: "register",
-        routeKey: keyRef.current,
-        id,
-        mode,
-        durationSeconds,
+  useEffect(() => {
+    if (worker) {
+      listeners.set(id, (msg: TimerWorkerMessage): void => {
+        if (msg.type === "tick" && msg.mode === "down") setValue(msg.secondsLeft);
+        if (msg.type === "tick" && msg.mode === "up") setValue(msg.secondsElapsed);
+        if (msg.type === "expired") setValue(0);
       });
+
+      const prev = lastRegister.current;
+      if (!prev || prev.durationSeconds !== durationSeconds || prev.routeKey !== keyRef.current || prev.mode !== mode) {
+        lastRegister.current = { durationSeconds, routeKey: keyRef.current, mode };
+        worker.postMessage({
+          type: "register",
+          routeKey: keyRef.current,
+          id,
+          mode,
+          durationSeconds,
+        });
+      }
     }
-  }
+  }, [id, durationSeconds, mode]);
 
   useEffect(() => {
     return () => {
-       console.log(`1 - In useEffect cleanup id ${id}`);
       listeners.delete(id);
       worker?.postMessage({
         type: "unregister",
@@ -63,5 +64,5 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
     };
   }, [id, routeKey]);
 
-  return value;
+  return windoExists ? value : 0;
 };
