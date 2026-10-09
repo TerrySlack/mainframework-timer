@@ -1,32 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { createWorker } from "../worker/createWorker";
 import { getDefaultRouteKey } from "../utils/routes";
 import type { TimerMode, TimerWorkerMessage } from "../types";
-import { normalizeDurationSeconds } from "../utils/duration";
+const windoExists = typeof window !== "undefined";
 
-type Listener = (msg: TimerWorkerMessage) => void;
-interface TimerState {
-  durationSeconds: number;
-  routeKey: string;
-  mode: TimerMode;
-  value: number;
-  generation: number;
+let worker: Worker | undefined = undefined;
+if (windoExists) {
+  worker = createWorker();
 }
+// One shared dispatcher so every hook instance gets its own messages
+const listeners = new Map<string, (msg: TimerWorkerMessage) => void>();
 
-const listeners = new Map<string, Listener>();
-let workerListenerAttached = false;
-let nextTimerId = 0;
-
-const ensureWorkerListener = (worker: Worker): void => {
-  if (workerListenerAttached) return;
-  worker.addEventListener("message", (e: MessageEvent<TimerWorkerMessage>) => {
+if (worker && !worker.onmessage) {
+  worker.onmessage = (e: MessageEvent<TimerWorkerMessage>): void => {
     const msg = e.data;
-    if (!msg || !msg.id) return;
+    if (!msg?.id) return;
     listeners.get(msg.id)?.(msg);
-  });
-  workerListenerAttached = true;
-};
+  };
+}
 
 /**
  * Drives a timer via the shared worker.
@@ -34,85 +26,43 @@ const ensureWorkerListener = (worker: Worker): void => {
  * mode "up": durationSeconds is ignored. Returns seconds elapsed since mount/registration.
  */
 export const useTimer = (durationSeconds: number, routeKey?: string, mode: TimerMode = "down"): number => {
-  if (typeof window === "undefined") {
-    throw new Error("@mainframework/timer is client-side only and requires a window environment.");
-  }
-
-  const activeRouteKey = routeKey ?? getDefaultRouteKey();
-  const effectiveDuration = mode === "down" ? normalizeDurationSeconds(durationSeconds) : 0;
-
-  const [timerState, setTimerState] = useState<TimerState>({
-    durationSeconds: effectiveDuration,
-    routeKey: activeRouteKey,
-    mode,
-    value: effectiveDuration,
-    generation: 0,
-  });
-  const configurationChanged =
-    timerState.durationSeconds !== effectiveDuration ||
-    timerState.routeKey !== activeRouteKey ||
-    timerState.mode !== mode;
-  const generation = configurationChanged ? timerState.generation + 1 : timerState.generation;
-  let value = timerState.value;
-  if (configurationChanged) {
-    value = effectiveDuration;
-    setTimerState({
-      durationSeconds: effectiveDuration,
-      routeKey: activeRouteKey,
-      mode,
-      value,
-      generation,
-    });
-  }
+  const id = useId();
+  const lastRegister = useRef<{ durationSeconds: number; routeKey: string; mode: TimerMode } | null>(null);
+  const [value, setValue] = useState(mode === "down" ? durationSeconds : 0);
+  const keyRef = useRef<string>(routeKey ?? getDefaultRouteKey());
 
   useEffect(() => {
-    const currentWorker = createWorker();
-    const id = `@mainframework/timer:${++nextTimerId}`;
-    ensureWorkerListener(currentWorker);
-
-    const handleMessage = (msg: TimerWorkerMessage): void => {
-      setTimerState((currentState) => {
-        if (currentState.generation !== generation) return currentState;
-
-        let nextValue: number;
-        if (msg.type === "tick" && msg.mode === "down") nextValue = msg.secondsLeft;
-        else if (msg.type === "tick" && msg.mode === "up") nextValue = msg.secondsElapsed;
-        else nextValue = 0;
-        return {
-          ...currentState,
-          value: nextValue,
-        };
+    if (worker) {
+      listeners.set(id, (msg: TimerWorkerMessage): void => {
+        if (msg.type === "tick" && msg.mode === "down") setValue(msg.secondsLeft);
+        if (msg.type === "tick" && msg.mode === "up") setValue(msg.secondsElapsed);
+        if (msg.type === "expired") setValue(0);
       });
-    };
 
-    listeners.set(id, handleMessage);
-
-    if (mode === "down") {
-      currentWorker.postMessage({
-        type: "register",
-        routeKey: activeRouteKey,
-        id,
-        mode,
-        durationSeconds: effectiveDuration,
-      });
-    } else {
-      currentWorker.postMessage({
-        type: "register",
-        routeKey: activeRouteKey,
-        id,
-        mode,
-      });
+      const prev = lastRegister.current;
+      if (!prev || prev.durationSeconds !== durationSeconds || prev.routeKey !== keyRef.current || prev.mode !== mode) {
+        lastRegister.current = { durationSeconds, routeKey: keyRef.current, mode };
+        worker.postMessage({
+          type: "register",
+          routeKey: keyRef.current,
+          id,
+          mode,
+          durationSeconds,
+        });
+      }
     }
+  }, [id, durationSeconds, mode]);
 
+  useEffect(() => {
     return () => {
       listeners.delete(id);
-      currentWorker.postMessage({
+      worker?.postMessage({
         type: "unregister",
-        routeKey: activeRouteKey,
+        routeKey: routeKey ?? getDefaultRouteKey(),
         id,
       });
     };
-  }, [activeRouteKey, effectiveDuration, generation, mode]);
+  }, [id, routeKey]);
 
-  return value;
+  return windoExists ? value : 0;
 };

@@ -53,11 +53,12 @@
     "build": "rollup -c && tsc --emitDeclarationOnly --declarationDir dist/types",
     "pretest": "pnpm build",
     "test": "vitest run --project unit",
+    "test:all": "vitest run --project unit --project browser --project package",
     "test:browser": "pnpm build && vitest run --project browser",
     "test:package": "pnpm build && vitest run --project package",
     "test:types": "pnpm build && tsc -p tsconfig.test.json",
     "tscheck": "tsc --noEmit --emitDeclarationOnly false --incremental false",
-    "verify": "pnpm tscheck && pnpm test && pnpm lint && pnpm test:browser && pnpm test:package && pnpm test:types"
+    "verify": "pnpm tscheck && pnpm build && vitest run --project unit --project browser --project package && pnpm lint && tsc -p tsconfig.test.json"
   },
   "devDependencies": {
     "@babel/core": "^8.0.7",

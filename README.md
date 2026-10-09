@@ -6,7 +6,9 @@ Countdown and count-up timers for browsers, backed by one shared Web Worker per 
 
 The root `@mainframework/timer` entry is framework-free browser JavaScript. The optional `@mainframework/timer/react` entry adapts the same worker for React 19 or later.
 
-Timer APIs require `window` and `Worker`. Calling them during server execution throws an explicit error; the package does not provide a server timer, fallback, or no-op mode. The React bundle includes a `"use client"` directive for tools that understand React Server Components, but timer execution must still happen in a browser.
+The root `@mainframework/timer` entry requires `window` and `Worker`; calling `createWorker`, `getDefaultRouteKey`, or `setActiveRoute` during server execution throws an explicit error.
+
+`useTimer` returns `0` when `window` is unavailable. On the server, pass an explicit `routeKey`: if it is omitted, render may throw while resolving the pathname default via `getDefaultRouteKey()`. When render completes, the returned value is still `0`. After mount in the browser, the first paint shows the raw `durationSeconds` for countdown mode (whole seconds still come from worker ticks); count-up starts at `0` until ticks arrive. When `routeKey` is omitted on the client, the pathname default applies from the first client render. The React bundle includes a `"use client"` directive for tools that understand React Server Components.
 
 ## Installation
 
