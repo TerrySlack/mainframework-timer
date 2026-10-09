@@ -36,9 +36,9 @@ export const Stopwatch = () => {
 
 `useTimer(durationSeconds, routeKey?, mode?)` returns remaining whole seconds in `"down"` mode and elapsed whole seconds in `"up"` mode.
 
-- Countdown durations are floored to whole seconds. Zero, negative, `NaN`, and infinite values become zero.
+- In the worker, countdown durations are floored to whole seconds; zero, negative, `NaN`, and infinite values register as zero. Until the first tick, the hook may still display the raw `durationSeconds` you passed (including fractions).
 - Count-up mode ignores the duration and later duration changes.
-- `routeKey` is an arbitrary grouping key. When omitted, it defaults to `window.location.pathname`.
+- `routeKey` is an arbitrary grouping key. When omitted, it defaults to `window.location.pathname`. The key used for `register` is captured on the first render and does not change if the prop later changes; unmount sends `unregister` with the latest `routeKey` prop.
 
 ## Plain JavaScript
 
@@ -90,7 +90,7 @@ worker.postMessage({
 });
 ```
 
-Use `addEventListener` rather than assigning `worker.onmessage`; the singleton may serve multiple consumers.
+Use `addEventListener` rather than assigning `worker.onmessage`; the singleton may serve multiple consumers. The React entry sets `onmessage` once to dispatch ticks to hook instances—do not replace it if you mix the root and React entries in the same app.
 
 ## Group cleanup
 
