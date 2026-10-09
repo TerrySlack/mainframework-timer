@@ -1,6 +1,6 @@
 {
   "name": "@mainframework/timer",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Browser countdown and count-up timers backed by a shared Web Worker",
   "author": "Terry Slack <tslack@mainframework.com>",
   "license": "MIT",
