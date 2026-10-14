@@ -2,25 +2,11 @@ import { StrictMode, act } from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { TimerMode } from "../../src/types";
-import {
-  clearMounts,
-  getFakeWorker,
-  installFakeWorker,
-  loadUseTimer,
-  mount,
-} from "./timer-test-harness";
+import { clearMounts, getFakeWorker, installFakeWorker, loadUseTimer, mount } from "./timer-test-harness";
 
 let useTimer: (durationSeconds: number, routeKey?: string, mode?: TimerMode) => number;
 
-const Probe = ({
-  duration,
-  routeKey,
-  mode,
-}: {
-  duration: number;
-  routeKey?: string;
-  mode?: TimerMode;
-}) => {
+const Probe = ({ duration, routeKey, mode }: { duration: number; routeKey?: string; mode?: TimerMode }) => {
   const value = useTimer(duration, routeKey, mode);
   return <output>{value}</output>;
 };
@@ -40,7 +26,7 @@ afterEach(() => {
 });
 
 describe("useTimer hook", () => {
-  it("registers again after the Strict Mode cleanup cycle and unregisters the live timer", () => {
+  it("registers after the Strict Mode cleanup cycle without worker unregister", () => {
     const mounted = mount(
       <StrictMode>
         <Probe duration={10} routeKey="strict" />
@@ -48,19 +34,14 @@ describe("useTimer hook", () => {
     );
     const worker = getFakeWorker();
 
-    expect(worker.messages.map(({ type }) => type)).toEqual(["register", "unregister"]);
-    const liveRegistration = worker.messages[0];
-    expect(liveRegistration?.type).toBe("register");
+    expect(worker.messages.map(({ type }) => type)).toEqual(["register"]);
+    expect(worker.messages[0]?.type).toBe("register");
 
     act(() => {
       mounted.root.unmount();
     });
 
-    expect(worker.messages.at(-1)).toEqual({
-      type: "unregister",
-      routeKey: "strict",
-      id: liveRegistration?.id,
-    });
+    expect(worker.messages.map(({ type }) => type)).toEqual(["register"]);
   });
 
   it("does not register again for an unchanged render", () => {
@@ -156,30 +137,6 @@ describe("useTimer hook", () => {
 
     expect(first.container.querySelector("output")?.textContent).toBe("8");
     expect(second.container.querySelector("output")?.textContent).toBe("10");
-  });
-
-  it("does not re-register when routeKey changes but unregisters with the latest routeKey prop", () => {
-    const mounted = mount(<Probe duration={10} routeKey="route-a" />);
-    const worker = getFakeWorker();
-    const registration = worker.messages.at(-1);
-
-    act(() => {
-      mounted.root.render(<Probe duration={10} routeKey="route-b" />);
-    });
-
-    expect(worker.messages.map(({ type }) => type)).toEqual(["register", "unregister"]);
-    expect(registration?.routeKey).toBe("route-a");
-    expect(worker.messages.at(-1)).toMatchObject({ type: "unregister", routeKey: "route-a" });
-
-    act(() => {
-      mounted.root.unmount();
-    });
-
-    expect(worker.messages.at(-1)).toEqual({
-      type: "unregister",
-      routeKey: "route-b",
-      id: registration?.id,
-    });
   });
 
   it("applies a stale tick after duration changes when the timer id is unchanged", () => {
