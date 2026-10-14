@@ -38,7 +38,8 @@ export const Stopwatch = () => {
 
 - In the worker, countdown durations are floored to whole seconds; zero, negative, `NaN`, and infinite values register as zero. Until the first tick, the hook may still display the raw `durationSeconds` you passed (including fractions).
 - Count-up mode ignores the duration and later duration changes.
-- `routeKey` is an arbitrary grouping key. When omitted, it defaults to `window.location.pathname`. The key used for `register` is captured on the first render and does not change if the prop later changes; unmount sends `unregister` with the latest `routeKey` prop.
+- `routeKey` is an arbitrary grouping key. When omitted, it defaults to `window.location.pathname`. The key used for `register` is captured on the first render and does not change for that mount.
+- `useTimer` does not post worker `unregister` on unmount. On navigation, call `setActiveRoute` with the active group key (see Group cleanup). Global or dev keys (for example `"stopwatch"`) stay in the worker until `setActiveRoute` purges them or you post explicit `unregister` like the plain JavaScript example.
 
 ## Plain JavaScript
 

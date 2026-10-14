@@ -51,18 +51,11 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
         });
       }
     }
-  }, [id, durationSeconds, mode]);
 
-  useEffect(() => {
     return () => {
       listeners.delete(id);
-      worker?.postMessage({
-        type: "unregister",
-        routeKey: routeKey ?? getDefaultRouteKey(),
-        id,
-      });
     };
-  }, [id, routeKey]);
+  }, [id, durationSeconds, mode]);
 
   return windoExists ? value : 0;
 };

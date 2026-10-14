@@ -75,6 +75,14 @@ describe("timer worker edges", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("setActiveRoute purges pathname timers after register on that pathname", () => {
+    send({ type: "register", routeKey: "/checkout", id: "page-timer", mode: "down", durationSeconds: 30 });
+    outgoing = [];
+    send({ type: "route", activeRoute: "/home" });
+    vi.advanceTimersByTime(2000);
+    expect(outgoing.filter((message) => message.id === "page-timer")).toEqual([]);
+  });
+
   it("keeps the empty-string group when it becomes authoritative", () => {
     send({ type: "register", routeKey: "", id: "kept", mode: "up" });
     send({ type: "register", routeKey: "removed", id: "removed", mode: "up" });
