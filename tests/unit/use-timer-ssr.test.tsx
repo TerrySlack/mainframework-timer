@@ -18,9 +18,7 @@ const renderedValue = (element: React.ReactElement): string => {
   return match?.[1] ?? "";
 };
 
-type RenderOrThrowResult =
-  | { outcome: "value"; value: string }
-  | { outcome: "throw"; message: string };
+type RenderOrThrowResult = { outcome: "value"; value: string } | { outcome: "throw"; message: string };
 
 const renderOrThrow = (element: React.ReactElement): RenderOrThrowResult => {
   try {
@@ -46,14 +44,14 @@ describe("useTimer SSR", () => {
     expectZeroOrRouteError(<Probe duration={60} />);
   });
 
-  it("returns zero with an explicit routeKey and without throwing", () => {
-    expect(renderedValue(<Probe duration={1.9} routeKey="/explicit" />)).toBe("0");
+  it("returns the raw countdown duration with an explicit routeKey and without throwing", () => {
+    expect(renderedValue(<Probe duration={1.9} routeKey="/explicit" />)).toBe("1.9");
   });
 
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
-    "returns zero for invalid countdown duration %s",
+    "returns the raw countdown duration %s",
     (durationSeconds) => {
-      expect(renderedValue(<Probe duration={durationSeconds} routeKey="/invalid" />)).toBe("0");
+      expect(renderedValue(<Probe duration={durationSeconds} routeKey="/invalid" />)).toBe(String(durationSeconds));
     },
   );
 

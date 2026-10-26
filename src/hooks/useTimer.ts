@@ -57,5 +57,5 @@ export const useTimer = (durationSeconds: number, routeKey?: string, mode: Timer
     };
   }, [id, durationSeconds, mode]);
 
-  return windoExists ? value : 0;
+  return value; //Return value, this helps with ssr.
 };

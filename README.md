@@ -8,7 +8,7 @@ The root `@mainframework/timer` entry is framework-free browser JavaScript. The 
 
 The root `@mainframework/timer` entry requires `window` and `Worker`; calling `createWorker`, `getDefaultRouteKey`, or `setActiveRoute` during server execution throws an explicit error.
 
-`useTimer` returns `0` when `window` is unavailable. On the server, pass an explicit `routeKey`: if it is omitted, render may throw while resolving the pathname default via `getDefaultRouteKey()`. When render completes, the returned value is still `0`. After mount in the browser, the first paint shows the raw `durationSeconds` for countdown mode (whole seconds still come from worker ticks); count-up starts at `0` until ticks arrive. When `routeKey` is omitted on the client, the pathname default applies from the first client render. The React bundle includes a `"use client"` directive for tools that understand React Server Components.
+On the server, pass an explicit `routeKey`: if it is omitted, render throws while resolving the pathname default via `getDefaultRouteKey()`. When render completes, countdown mode returns the raw `durationSeconds` and count-up mode returns `0`, the same values as the first browser paint. Whole seconds still come from worker ticks after mount. When `routeKey` is omitted on the client, the pathname default applies from the first client render. The React bundle includes a `"use client"` directive for tools that understand React Server Components.
 
 ## Installation
 

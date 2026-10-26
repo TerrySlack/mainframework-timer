@@ -46,6 +46,7 @@ export default {
       declarationDir: "dist/types",
       rootDir: "src",
       exclude: ["src/hooks/**"],
+      outputToFilesystem: true,
     }),
     terser({
       // Preserve "use client" / other directives — terser strips unknown
