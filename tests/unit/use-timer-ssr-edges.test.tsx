@@ -18,9 +18,7 @@ const renderedValue = (element: React.ReactElement): string => {
   return match?.[1] ?? "";
 };
 
-type RenderOrThrowResult =
-  | { outcome: "value"; value: string }
-  | { outcome: "throw"; message: string };
+type RenderOrThrowResult = { outcome: "value"; value: string } | { outcome: "throw"; message: string };
 
 const renderOrThrow = (element: React.ReactElement): RenderOrThrowResult => {
   try {
@@ -41,14 +39,14 @@ const expectZeroOrRouteError = (element: React.ReactElement): void => {
 };
 
 describe("useTimer SSR edges", () => {
-  it.each([1.9, 4.8, 0.5])("renders zero on the server for fractional countdown %s", (duration) => {
-    expect(renderedValue(<Probe duration={duration} routeKey="/frac" />)).toBe("0");
+  it.each([1.9, 4.8, 0.5])("renders the raw fractional countdown %s on the server", (duration) => {
+    expect(renderedValue(<Probe duration={duration} routeKey="/frac" />)).toBe(String(duration));
   });
 
   it.each([0, -5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
-    "renders zero for countdown edge %s",
+    "renders the raw countdown edge %s on the server",
     (duration) => {
-      expect(renderedValue(<Probe duration={duration} routeKey="/edge" />)).toBe("0");
+      expect(renderedValue(<Probe duration={duration} routeKey="/edge" />)).toBe(String(duration));
     },
   );
 
@@ -59,15 +57,15 @@ describe("useTimer SSR edges", () => {
     },
   );
 
-  it("renders zero across repeated server renders", () => {
+  it("renders the raw countdown duration across repeated server renders", () => {
     const element = <Probe duration={10} routeKey="/repeat" />;
-    expect(renderedValue(element)).toBe("0");
-    expect(renderedValue(element)).toBe("0");
-    expect(renderedValue(<Probe duration={10} routeKey="/repeat" />)).toBe("0");
+    expect(renderedValue(element)).toBe("10");
+    expect(renderedValue(element)).toBe("10");
+    expect(renderedValue(<Probe duration={10} routeKey="/repeat" />)).toBe("10");
   });
 
-  it("renders zero for omitted and explicit routeKeys on the server", () => {
+  it("throws without a routeKey and renders the raw countdown duration with an explicit routeKey", () => {
     expectZeroOrRouteError(<Probe duration={7} />);
-    expect(renderedValue(<Probe duration={7} routeKey="/other" />)).toBe("0");
+    expect(renderedValue(<Probe duration={7} routeKey="/other" />)).toBe("7");
   });
 });
