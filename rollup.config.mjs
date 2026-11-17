@@ -12,6 +12,23 @@ const reactCompilerOptions = {
   },
 };
 
+const workerUrlFromChunk = (fileName) => {
+  const depth = fileName.split("/").length - 1;
+  const prefix = depth === 0 ? "./" : "../".repeat(depth);
+  return `${prefix}worker/timer.worker.js`;
+};
+
+const rewriteWorkerUrl = {
+  name: "rewrite-worker-url",
+  renderChunk: (code, chunk) => {
+    if (chunk.fileName === "worker/timer.worker.js" || !code.includes("./timer.worker.js")) return null;
+    return {
+      code: code.replaceAll("./timer.worker.js", workerUrlFromChunk(chunk.fileName)),
+      map: null,
+    };
+  },
+};
+
 export default {
   input: ["src/index.ts", "src/react.ts", "src/worker/timer.worker.ts"],
   external: (id) => id === "react" || id.startsWith("react/"),
@@ -54,5 +71,6 @@ export default {
       format: { comments: false },
       compress: { directives: false },
     }),
+    rewriteWorkerUrl,
   ],
 };
